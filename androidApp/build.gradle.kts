@@ -5,6 +5,7 @@ plugins {
     alias(libs.plugins.androidApplication)
     alias(libs.plugins.composeMultiplatform)
     alias(libs.plugins.composeCompiler)
+    alias(libs.plugins.paparazzi)
 }
 
 kotlin {
@@ -18,6 +19,13 @@ kotlin {
             implementation(project(":shared"))
             implementation(libs.androidx.activity.compose)
         }
+        androidUnitTest.dependencies {
+            implementation(libs.compose.runtime)
+            implementation(libs.compose.foundation)
+            implementation(libs.compose.material3)
+            implementation(libs.compose.ui)
+            implementation(libs.kotlin.test)
+        }
     }
 }
 
@@ -28,7 +36,7 @@ android {
     defaultConfig {
         applicationId = "com.agy.imagecategorizer.android"
         minSdk = libs.versions.android.minSdk.get().toInt()
-        targetSdk = libs.versions.android.targetSdk.get().toInt()
+        targetSdk = 34
         versionCode = 1
         versionName = "1.0"
     }
@@ -46,4 +54,9 @@ android {
         sourceCompatibility = JavaVersion.VERSION_11
         targetCompatibility = JavaVersion.VERSION_11
     }
+}
+
+tasks.withType<Test>().configureEach {
+    // Required workaround for Paparazzi and Gradle 9 compatibility
+    reports.html.required = false
 }
