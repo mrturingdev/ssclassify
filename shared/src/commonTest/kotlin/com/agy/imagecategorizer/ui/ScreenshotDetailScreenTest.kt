@@ -2,7 +2,6 @@ package com.agy.imagecategorizer.ui
 
 import kotlin.test.Test
 import kotlin.test.assertEquals
-import kotlin.test.assertTrue
 
 class ScreenshotDetailScreenTest {
 

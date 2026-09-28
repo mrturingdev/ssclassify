@@ -59,6 +59,7 @@ import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -360,7 +361,6 @@ private fun MetadataRow(
         Row(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(8.dp),
-            modifier = Modifier.weight(1f, fill = false),
         ) {
             Icon(
                 icon,
@@ -380,7 +380,10 @@ private fun MetadataRow(
             color = MaterialTheme.colorScheme.onSurface,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
-            modifier = Modifier.padding(start = 12.dp),
+            textAlign = TextAlign.End,
+            modifier = Modifier
+                .weight(1f, fill = false)
+                .padding(start = 12.dp),
         )
     }
 }
@@ -435,6 +438,10 @@ private fun HighlightsCard(highlights: List<Pair<String, String>>) {
                         text = value,
                         style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold),
                         color = MaterialTheme.colorScheme.onSurface,
+                        textAlign = TextAlign.End,
+                        modifier = Modifier
+                            .weight(1f, fill = false)
+                            .padding(start = 8.dp),
                     )
                 }
                 if (index < highlights.lastIndex) {
