@@ -63,8 +63,8 @@ Versions are the source of truth in `gradle/libs.versions.toml`; this table was 
 
 | Concern | Target | Current (in repo) |
 |---|---|---|
-| Language / platform | Kotlin Multiplatform (Android + iOS) | Kotlin 2.4.0, targets `androidTarget`, `iosX64`, `iosArm64`, `iosSimulatorArm64` |
-| UI | Compose Multiplatform + Material 3 | CMP 1.10.3 (pinned: 1.11 dropped `iosX64`, needed on Intel Macs), Material3 1.9.0, icons-extended 1.7.3 |
+| Language / platform | Kotlin Multiplatform (Android + iOS) | Kotlin 2.4.0, targets `androidTarget`, `iosArm64`, `iosSimulatorArm64` (`iosX64` dropped: Apple Silicon only) |
+| UI | Compose Multiplatform + Material 3 | CMP 1.11.1 (androidx Compose 1.11.2 underneath), Material3 1.9.0 (latest stable JetBrains build), icons-extended 1.7.3 (final release of that library) |
 | Build | Gradle + AGP | Gradle 9.0 wrapper, AGP 8.6.1, JDK 21, compileSdk/targetSdk 35, minSdk 24, iOS 15.0 |
 | Concurrency | Kotlinx Coroutines / Flow | Coroutines 1.10.2 |
 | Local DB | SQLDelight + SQLite (FTS4) | SQLDelight 2.4.0 (`screenshots.db`, `commonMain/sqldelight/.../Screenshot.sq`). Incremental scans. Full-text search uses **FTS4**, not FTS5: Android's framework SQLite has no FTS5 (confirmed on API 36), and FTS4 ships on both platforms without bundling SQLite |
@@ -101,7 +101,8 @@ See `architecture.md` for full details. High-level summary:
 
 ### Current status (verified 2026-09-27)
 
-- `:androidApp:assembleDebug` builds; `:shared:testDebugUnitTest` passes (21 tests: `ScreenshotCategorizerTest`, `ImageContentAnalyzerTest`, `ScreenshotRepositoryTest`). `:shared:compileKotlinIosX64` builds; iOS tests cannot run on this Intel Mac (the iOS 26 simulator rejects x86_64).
+- `:androidApp:assembleDebug` builds; `:shared:testDebugUnitTest` passes (28 tests: `ScreenshotCategorizerTest`, `ImageContentAnalyzerTest`, `CorrectionLearnerTest`, `ScreenshotRepositoryTest`). The 19 common tests also pass natively on the iOS simulator via `arch -arm64 ./gradlew -Dorg.gradle.java.home=<arm64 JDK> :shared:iosSimulatorArm64Test`.
+- The dev machine is an Apple M3, but the only installed JDK 21 is x86_64, so Gradle runs under Rosetta and Kotlin/Native treats the host as Intel (`iosSimulatorArm64Test` is skipped, `iosX64Test` fails with "Bad CPU type"). With `iosX64` gone, this x86_64 JDK can no longer run any iOS tests; use an arm64 JDK (Android Studio's JDK 25 works) as shown in the README. The iOS app builds, links and launches in the iOS 26.2 simulator with CMP 1.11.1.
 - Phase 1 (Android) is partially done: gallery scan, categorization, ML Kit OCR and grid UI with category and sub-category chips work. Persistence with incremental rescans, full-text search, a detail dialog and category correction are done. Phase 1 acceptance criteria are met.
 - Phase 2 (iOS) is partially done: PhotoKit scan filtered by the screenshot flag, Vision OCR, thumbnails and shared UI work. Missing: everything missing on Android.
 - Only screenshots are scanned (Android: name/path tokens such as `screenshot`, `captura`, `bildschirmfoto`; iOS: `PHAssetMediaSubtypePhotoScreenshot`). Other gallery images are ignored. Categories are the content categories from section 2.3 (Meme is omitted since text rules cannot detect it); no match -> Uncategorized.
@@ -245,6 +246,6 @@ Acceptance criteria:
 
 1. Measure category accuracy on a real screenshot set and tune `ScreenshotCategorizer` keywords.
 2. Extract `OcrEngine` / image classifier out of `MediaScanner.android.kt` behind shared interfaces.
-3. Use corrections as a signal (plan 2.3): e.g. suggest keywords from corrected screenshots' OCR text. Today they only pin that one screenshot.
-4. Run the iOS build on a device or Apple Silicon Mac (Vision OCR, PhotoKit, SQLite are compiled but never executed).
+3. Install an arm64 JDK 21 and point `org.gradle.java.home` at it, so the default build is native and runs iOS tests.
+4. Run the iOS app itself (Vision OCR, PhotoKit, SQLite have only been exercised through shared-code tests).
 5. Set up version control and CI for Android and iOS (the project is not a git repository yet).

@@ -19,6 +19,9 @@ Other images are ignored. Everything runs on-device, no network.
   screenshots and drop deleted ones. Last results show instantly at launch.
 - Correct a screenshot's category from its detail dialog, or reset it to
   automatic. Corrections are stored separately and survive re-analysis.
+- Corrections teach the classifier: screenshots whose text closely matches a
+  corrected one (same app screen or receipt layout) get the same category
+  (`classify/CorrectionLearner.kt`, TF-IDF cosine similarity >= 0.5).
 - Full-text search over OCR text and file names (SQLite FTS4, prefix match,
   all words must match); combines with the category chips.
 - Thumbnails load lazily (async, cached, downscaled to ~320px).
@@ -66,7 +69,12 @@ image-categorizer/
 
 ## Prerequisites
 
-- JDK 21 (must set `JAVA_HOME`; the default JDK 25 breaks the Kotlin toolchain)
+- JDK 21 (`org.gradle.java.home` in `gradle.properties`). Android Studio's arm64
+  JDK 25 also builds the project, and is needed on Apple Silicon to run iOS
+  simulator tests:
+  ```bash
+  arch -arm64 ./gradlew "-Dorg.gradle.java.home=/Applications/Android Studio.app/Contents/jbr/Contents/Home" :shared:iosSimulatorArm64Test
+  ```
   ```bash
   export JAVA_HOME=/Library/Java/JavaVirtualMachines/jdk-21.jdk/Contents/Home
   ```
@@ -94,9 +102,14 @@ which compiles the shared framework for the active SDK (`Shared.framework`).
 
 ## Version notes
 
-- Kotlin 2.4.0, Compose plugin 1.11.0, but Compose runtime/foundation/ui **pinned
-  to 1.10.3**: CMP 1.11.0 dropped `iosX64` artifacts, and this machine is an
-  Intel Mac (`x86_64`), so iOS simulator development needs the `iosX64` target.
+- Kotlin 2.4.0, Compose Multiplatform 1.11.1. iOS targets are `iosArm64` and
+  `iosSimulatorArm64` only (CMP 1.11 has no `iosX64`); Intel Macs are not supported.
+- The only JDK 21 on the dev machine is x86_64, so Gradle runs under Rosetta and
+  Kotlin/Native skips iOS simulator tests. Run them with an arm64 JDK (below).
+- The Xcode app links `-lsqlite3` itself: `Shared` is a static framework, so
+  SQLDelight's SQLite dependency does not propagate to the app on its own.
+- `Info.plist` must keep `CADisableMinimumFrameDurationOnPhone = true`; Compose
+  crashes on launch in debug builds without it.
 - AGP 8.6.1 and compileSdk 35 are required by androidx.compose 1.10.x/1.11.x.
 - Kotlin 2.4 uses the v2 Android source layout: Android sources live in
   `src/androidMain/kotlin` and `src/androidMain/AndroidManifest.xml`.
