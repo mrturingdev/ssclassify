@@ -1,0 +1,25 @@
+# Gradle / build output
+.gradle/
+build/
+.kotlin/
+captures/
+
+# Machine-local config
+local.properties
+
+# IDE
+.idea/
+*.iml
+.DS_Store
+
+# Xcode
+xcuserdata/
+*.xcworkspace/xcuserdata/
+DerivedData/
+
+# Tooling scratch output
+.lavish/
+.claude/settings.local.json
+
+# macOS resource forks
+__MACOSX/
