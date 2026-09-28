@@ -13,7 +13,9 @@ import java.io.IOException
 
 actual class ThumbnailLoader actual constructor() {
 
-    private val cache = object : LruCache<String, ImageBitmap>(64) {
+    private val maxMemoryKb = (Runtime.getRuntime().maxMemory() / 1024).toInt()
+    private val cacheSizeKb = (maxMemoryKb / 8).coerceIn(32 * 1024, 128 * 1024)
+    private val cache = object : LruCache<String, ImageBitmap>(cacheSizeKb) {
         override fun sizeOf(key: String, value: ImageBitmap): Int =
             value.width * value.height * 4 / 1024
     }

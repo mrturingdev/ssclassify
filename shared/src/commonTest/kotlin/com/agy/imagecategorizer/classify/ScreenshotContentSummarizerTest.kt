@@ -38,6 +38,18 @@ class ScreenshotContentSummarizerTest {
     }
 
     @Test
+    fun extractsLastPriorityAmountInHighlights() {
+        val ocr = """
+            Subtotal: $25.00
+            Tax: $2.50
+            Total: $27.50
+        """.trimIndent()
+        val highlights = ScreenshotContentSummarizer.extractHighlights(ocr)
+        val amount = highlights.firstOrNull { it.first == "Amount" }?.second
+        assertEquals("Total: $27.50", amount)
+    }
+
+    @Test
     fun fallbacksGracefullyWhenOcrEmpty() {
         val fallback = "Objects: phone, screen."
         val digest = ScreenshotContentSummarizer.summarizeDigest("", fallback)

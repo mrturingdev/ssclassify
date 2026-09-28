@@ -11,10 +11,14 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBars
+import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Close
@@ -165,7 +169,9 @@ fun FullscreenImageViewer(
                 visible = showHud,
                 enter = fadeIn(),
                 exit = fadeOut(),
-                modifier = Modifier.align(Alignment.TopCenter),
+                modifier = Modifier
+                    .align(Alignment.TopCenter)
+                    .windowInsetsPadding(WindowInsets.statusBars),
             ) {
                 Surface(
                     modifier = Modifier.fillMaxWidth(),
@@ -226,6 +232,7 @@ fun FullscreenImageViewer(
                 exit = fadeOut(),
                 modifier = Modifier
                     .align(Alignment.BottomCenter)
+                    .windowInsetsPadding(WindowInsets.navigationBars)
                     .padding(bottom = 24.dp),
             ) {
                 Surface(

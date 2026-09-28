@@ -7,6 +7,8 @@ object ScreenshotContentSummarizer {
         RegexOption.IGNORE_CASE,
     )
 
+    private val tokenSplitRegex = Regex("[\\s|•·\\-]+")
+
     private val amountRegex = Regex(
         """(?i)(?:total|grand\s*total|subtotal|amount|due|paid|price|balance|rs\.?|npr|\$)\s*[:=-]?\s*([$€£₹]?\s*\d+(?:[.,]\d{1,2})?)"""
     )
@@ -51,7 +53,8 @@ object ScreenshotContentSummarizer {
     fun extractHighlights(ocrText: String): List<Pair<String, String>> {
         val highlights = mutableListOf<Pair<String, String>>()
 
-        val amountMatch = priorityAmountRegex.find(ocrText) ?: amountRegex.find(ocrText)
+        val amountMatch = priorityAmountRegex.findAll(ocrText).lastOrNull()
+            ?: amountRegex.findAll(ocrText).lastOrNull()
         amountMatch?.let { match ->
             highlights += "Amount" to match.value.trim()
         }
@@ -79,7 +82,7 @@ object ScreenshotContentSummarizer {
         val clean = line.trim().lowercase()
         if (clean.length <= 2) return true
         if (statusNoiseRegex.matches(clean)) return true
-        val tokens = clean.split(Regex("[\\s|•·\\-]+")).filter { it.isNotBlank() }
+        val tokens = clean.split(tokenSplitRegex).filter { it.isNotBlank() }
         return tokens.isNotEmpty() && tokens.all { token ->
             statusNoiseRegex.matches(token)
         }
