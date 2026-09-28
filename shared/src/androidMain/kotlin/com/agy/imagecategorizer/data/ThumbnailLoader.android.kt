@@ -19,7 +19,8 @@ actual class ThumbnailLoader actual constructor() {
     }
 
     actual suspend fun load(id: String, sizePx: Int): ImageBitmap? = withContext(Dispatchers.IO) {
-        cache.get(id) ?: decode(id, sizePx)?.also { cache.put(id, it) }
+        val key = "$id@$sizePx"
+        cache.get(key) ?: decode(id, sizePx)?.also { cache.put(key, it) }
     }
 
     private fun decode(id: String, sizePx: Int): ImageBitmap? {
@@ -58,6 +59,7 @@ actual class ThumbnailLoader actual constructor() {
     }
 
     private fun computeSampleSize(width: Int, height: Int, sizePx: Int): Int {
+        if (sizePx <= 0) return 1
         var sample = 1
         while (width / (sample * 2) >= sizePx || height / (sample * 2) >= sizePx) {
             sample *= 2

@@ -31,8 +31,9 @@ actual class ThumbnailLoader actual constructor() {
     private val cache = mutableMapOf<String, ImageBitmap>()
 
     actual suspend fun load(id: String, sizePx: Int): ImageBitmap? = mutex.withLock {
-        cache[id] ?: fetch(id, sizePx).also { bitmap ->
-            if (bitmap != null) cache[id] = bitmap
+        val key = "$id@$sizePx"
+        cache[key] ?: fetch(id, sizePx).also { bitmap ->
+            if (bitmap != null) cache[key] = bitmap
         }
     }
 
