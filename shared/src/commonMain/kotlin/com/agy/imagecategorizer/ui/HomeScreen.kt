@@ -92,6 +92,7 @@ import com.agy.imagecategorizer.PERMISSION_DENIED
 import com.agy.imagecategorizer.data.MediaScanner
 import com.agy.imagecategorizer.data.ScanOutcome
 import com.agy.imagecategorizer.data.ThumbnailLoader
+import com.agy.imagecategorizer.model.CategorySource
 import com.agy.imagecategorizer.model.ImageCategory
 import com.agy.imagecategorizer.model.ImageRecord
 
@@ -625,9 +626,14 @@ private fun ImageDetailDialog(
                     }
                 }
 
-                if (image.isCategoryCorrected) {
+                val sourceNote = when (image.source) {
+                    CategorySource.User -> "Category set by you \u00B7 automatic: ${image.autoCategory.displayName}"
+                    CategorySource.Learned -> "Category learned from similar screenshots you corrected"
+                    CategorySource.Rules -> null
+                }
+                if (sourceNote != null) {
                     Text(
-                        text = "Category set by you \u00B7 automatic: ${image.autoCategory.displayName}",
+                        text = sourceNote,
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
@@ -655,7 +661,7 @@ private fun ImageDetailDialog(
 
 /** Category pill that opens a menu to correct the category or reset it to automatic. */
 @Composable
-private fun CategoryPicker(image: ImageRecord, onCategoryChange: (ImageCategory?) -> Unit) {
+internal fun CategoryPicker(image: ImageRecord, onCategoryChange: (ImageCategory?) -> Unit) {
     var expanded by remember { mutableStateOf(false) }
     Box {
         Surface(
