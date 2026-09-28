@@ -150,6 +150,7 @@ fun HomeScreen(
             onBack = { activeDetailId = null },
             onOpenFullscreen = { fullscreenImageId = activeDetailImage.id },
             onCategoryChange = { onCategoryChange(activeDetailImage.id, it) },
+            modifier = modifier,
         )
     } else {
         Scaffold(

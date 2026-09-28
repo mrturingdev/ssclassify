@@ -85,10 +85,12 @@ fun ScreenshotDetailScreen(
     onBack: () -> Unit,
     onOpenFullscreen: () -> Unit,
     onCategoryChange: (ImageCategory?) -> Unit,
+    modifier: Modifier = Modifier,
 ) {
     val snackbarHostState = remember { SnackbarHostState() }
 
     Scaffold(
+        modifier = modifier,
         snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
             TopAppBar(
