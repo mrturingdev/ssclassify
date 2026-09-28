@@ -1,4 +1,4 @@
-# Image Categorizer
+# S.S. Classify
 
 A Compose Multiplatform (KMP) mobile app that finds the screenshots in your
 photo library, reads them with on-device OCR and groups them by content.
@@ -36,14 +36,24 @@ Other images are ignored. Everything runs on-device, no network.
 1. **Screenshot detection** - Android: file name / folder contains a screenshot
    token (`screenshot`, `screen shot`, `captura`, `bildschirmfoto`, ...).
    iOS: `PHAssetMediaSubtypePhotoScreenshot`. Everything else is skipped.
-2. **OCR** - ML Kit Text Recognition (Android, Latin script) or Apple Vision
-   (iOS) reads the screenshot text.
-3. **Keyword rules** - whole-word keyword hits over OCR text + file name are
-   counted per category; the most hits wins, ties go to the order above, no
-   hits -> Uncategorized.
-
-On Android, a MobileNet TFLite model and OCR keywords also add a free-form
-sub-category shown as a second chip row.
+2. **OCR** - ML Kit Text Recognition (Android, Latin script, near full
+   resolution) or Apple Vision (iOS) reads the whole screenshot once, with a
+   box per line. `classify/OcrTextProcessor.kt` turns that into:
+   - **raw text**: every line as the engine returned it;
+   - **filtered text**: only lines in the central 90% (status and nav bars
+     live in the outer 5%), rebuilt into reading-order rows so split columns
+     rejoin ("Total" + "508.50" -> "Total 508.50"), symbol/garbage tokens and
+     pure status-bar lines removed.
+   The detail screen shows both.
+3. **Keyword rules** - whole-word keyword hits over the *filtered* text + file
+   name are counted per category; the most hits wins, ties go to the order
+   above, no hits -> Uncategorized. Search indexes the raw text.
+4. **Object** (`classify/ObjectResolver.kt`) - named from the filtered text
+   when it contains one ("Boarding Pass", "Invoice"). Only text-light,
+   photo-first screenshots run MobileNet (Android), on the tallest text-free
+   band found from the OCR boxes; labels that describe screens ("web site",
+   "envelope") and anything under 0.6 confidence are ignored. The detail
+   screen says which engine named it.
 
 ## Project structure
 

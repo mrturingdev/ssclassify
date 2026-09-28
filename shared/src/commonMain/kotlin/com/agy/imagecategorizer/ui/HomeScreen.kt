@@ -158,7 +158,7 @@ fun HomeScreen(
                 CenterAlignedTopAppBar(
                     title = {
                         Text(
-                            "Image Categorizer",
+                            "S.S. Classify",
                             style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.SemiBold),
                         )
                     },

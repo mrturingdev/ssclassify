@@ -1,0 +1,18 @@
+<svg viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- S.S. Classify — Variant 2: Dual Screen S-Flow -->
+  <!-- Layered screenshot rectangles linked by an intelligent classification S-spine -->
+  <!-- Background screenshot frame -->
+  <rect x="36" y="16" width="38" height="54" rx="7" 
+        stroke="currentColor" stroke-width="2.5" stroke-dasharray="4 3" opacity="0.45"/>
+  <!-- Foreground screenshot frame -->
+  <rect x="26" y="30" width="38" height="54" rx="7" 
+        stroke="currentColor" stroke-width="3" fill="#FAFAFA"/>
+  
+  <!-- Dynamic S-Classification Wave through the screens -->
+  <path d="M 54 26 C 46 26 42 30 42 36 C 42 43 58 45 58 53 C 58 60 52 64 44 64" 
+        stroke="currentColor" stroke-width="3.5" stroke-linecap="round"/>
+        
+  <!-- OCR Scan Bar / Category Pill in foreground -->
+  <line x1="33" y1="40" x2="41" y2="40" stroke="currentColor" stroke-width="2" stroke-linecap="round" opacity="0.6"/>
+  <circle cx="56" cy="74" r="2.5" fill="currentColor"/>
+</svg>

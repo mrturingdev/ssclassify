@@ -1,0 +1,17 @@
+<svg viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- S.S. Classify — Variant 3: The Viewfinder Twin-S -->
+  <!-- Precision screenshot capture brackets enclosing an interlocking dual-S monogram -->
+  <!-- Viewfinder corners (screenshot bounds) -->
+  <path d="M 23 33 V 25 C 23 23 25 21 27 21 H 35" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/>
+  <path d="M 65 21 H 73 C 75 21 77 23 77 25 V 33" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/>
+  <path d="M 77 67 V 75 C 77 77 75 79 73 79 H 65" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/>
+  <path d="M 35 79 H 27 C 25 79 23 77 23 75 V 67" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/>
+
+  <!-- Left S -->
+  <path d="M 44 34 C 37 34 33 37.5 33 42 C 33 47.5 41 49 45 51 C 49 53 51 55.5 51 59 C 51 64 46.5 67 40 67 C 34.5 67 31 63.5 30 60" 
+        stroke="currentColor" stroke-width="3.5" stroke-linecap="round"/>
+        
+  <!-- Right S (nested, interlocked, shifted right and slightly higher) -->
+  <path d="M 62 33 C 67.5 33 71 36.5 71 41 C 71 45.5 67 48 61 50 C 56 51.5 52 53.5 52 58 C 52 62.5 56.5 66 63 66 C 68 66 72 63 73 59" 
+        stroke="currentColor" stroke-width="3.5" stroke-linecap="round"/>
+</svg>

@@ -1,0 +1,14 @@
+<svg viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- S.S. Classify — Variant 1: The Optical S-Loop -->
+  <!-- Continuous dual-loop ribbon representing perpetual classification and optical flow -->
+  <path d="M 50 50 C 38 38 34 29 38 23 C 42 17 50 17 56 21 C 62 25 66 33 50 50 C 34 67 38 75 44 79 C 50 83 58 83 62 77 C 66 71 62 62 50 50 Z" 
+        stroke="currentColor" 
+        stroke-width="3.5" 
+        stroke-linecap="round" 
+        stroke-linejoin="round"/>
+  <!-- Central OCR focal scanner node -->
+  <circle cx="50" cy="50" r="3.5" fill="currentColor"/>
+  <!-- Subtle satellite classification orbits -->
+  <circle cx="70" cy="24" r="2" fill="currentColor" opacity="0.4"/>
+  <circle cx="30" cy="76" r="2" fill="currentColor" opacity="0.4"/>
+</svg>
