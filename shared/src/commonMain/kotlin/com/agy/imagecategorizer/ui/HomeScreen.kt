@@ -2,25 +2,31 @@ package com.agy.imagecategorizer.ui
 
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.lazy.grid.rememberLazyGridState
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.rounded.ArrowForward
 import androidx.compose.material.icons.automirrored.rounded.ReceiptLong
 import androidx.compose.material.icons.rounded.AccountBalance
 import androidx.compose.material.icons.rounded.ArrowDropDown
@@ -34,6 +40,7 @@ import androidx.compose.material.icons.rounded.Download
 import androidx.compose.material.icons.rounded.Edit
 import androidx.compose.material.icons.rounded.Flight
 import androidx.compose.material.icons.rounded.FolderOpen
+import androidx.compose.material.icons.rounded.Fullscreen
 import androidx.compose.material.icons.rounded.LocalHospital
 import androidx.compose.material.icons.rounded.People
 import androidx.compose.material.icons.rounded.PhotoCamera
@@ -89,6 +96,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.agy.imagecategorizer.PERMISSION_DENIED
+import com.agy.imagecategorizer.classify.ScreenshotContentSummarizer
 import com.agy.imagecategorizer.data.MediaScanner
 import com.agy.imagecategorizer.data.ScanOutcome
 import com.agy.imagecategorizer.data.ThumbnailLoader
@@ -112,92 +120,130 @@ fun HomeScreen(
 ) {
     var selected by rememberSaveable { mutableStateOf(ALL_KEY) }
     var selectedSubCategory by rememberSaveable { mutableStateOf<String?>(null) }
+    var activeDetailId by rememberSaveable { mutableStateOf<String?>(null) }
+    var fullscreenImageId by rememberSaveable { mutableStateOf<String?>(null) }
 
     LaunchedEffect(Unit) {
         scanner.watchChanges().collect { onScan() }
     }
 
-    Scaffold(
-        topBar = {
-            CenterAlignedTopAppBar(
-                title = {
-                    Text(
-                        "Image Categorizer",
-                        style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.SemiBold),
-                    )
-                },
-                actions = {
-                    IconButton(onClick = onScan, enabled = !scanning) {
-                        Icon(Icons.Rounded.Refresh, contentDescription = "Rescan")
-                    }
-                },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.surfaceVariant,
-                ),
-            )
-        },
-        modifier = modifier,
-    ) { padding ->
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(padding),
-        ) {
-            when {
-                scanning && outcome !is ScanOutcome.Success -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                    Column(
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                        verticalArrangement = Arrangement.spacedBy(16.dp),
-                    ) {
-                        CircularProgressIndicator(
-                            strokeWidth = 3.dp,
-                            modifier = Modifier.size(44.dp),
-                        )
+    val currentImages = when (outcome) {
+        is ScanOutcome.Success -> searchResults ?: outcome.images
+        else -> searchResults ?: emptyList()
+    }
+    val activeDetailImage = currentImages.firstOrNull { it.id == activeDetailId }
+        ?: (outcome as? ScanOutcome.Success)?.images?.firstOrNull { it.id == activeDetailId }
+
+    val fullscreenImage = currentImages.firstOrNull { it.id == fullscreenImageId }
+        ?: (outcome as? ScanOutcome.Success)?.images?.firstOrNull { it.id == fullscreenImageId }
+
+    LaunchedEffect(activeDetailId, currentImages) {
+        if (activeDetailId != null && activeDetailImage == null) {
+            activeDetailId = null
+        }
+    }
+
+    if (activeDetailImage != null) {
+        ScreenshotDetailScreen(
+            image = activeDetailImage,
+            thumbnailLoader = thumbnailLoader,
+            onBack = { activeDetailId = null },
+            onOpenFullscreen = { fullscreenImageId = activeDetailImage.id },
+            onCategoryChange = { onCategoryChange(activeDetailImage.id, it) },
+        )
+    } else {
+        Scaffold(
+            topBar = {
+                CenterAlignedTopAppBar(
+                    title = {
                         Text(
-                            "Analyzing your photos\u2026",
-                            style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium),
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            "Image Categorizer",
+                            style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.SemiBold),
+                        )
+                    },
+                    actions = {
+                        IconButton(onClick = onScan, enabled = !scanning) {
+                            Icon(Icons.Rounded.Refresh, contentDescription = "Rescan")
+                        }
+                    },
+                    colors = TopAppBarDefaults.topAppBarColors(
+                        containerColor = MaterialTheme.colorScheme.surfaceVariant,
+                    ),
+                )
+            },
+            modifier = modifier,
+        ) { padding ->
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(padding),
+            ) {
+                when {
+                    scanning && outcome !is ScanOutcome.Success -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                        Column(
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            verticalArrangement = Arrangement.spacedBy(16.dp),
+                        ) {
+                            CircularProgressIndicator(
+                                strokeWidth = 3.dp,
+                                modifier = Modifier.size(44.dp),
+                            )
+                            Text(
+                                "Analyzing your photos\u2026",
+                                style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium),
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        }
+                    }
+
+                    outcome is ScanOutcome.Failure -> ErrorPane(
+                        modifier = Modifier.fillMaxSize(),
+                        reason = outcome.reason,
+                        onScan = onScan,
+                    )
+
+                    outcome is ScanOutcome.Success -> {
+                        // Cached results stay visible while an incremental scan catches up.
+                        if (scanning) LinearProgressIndicator(Modifier.fillMaxWidth())
+                        SearchField(query = query, onQueryChange = onQueryChange)
+                        val searching = query.isNotBlank()
+                        CategoryBrowser(
+                            images = searchResults ?: outcome.images,
+                            emptyMessage = if (searching) {
+                                "No screenshots contain \u201C${query.trim()}\u201D."
+                            } else {
+                                "No images in this category yet."
+                            },
+                            onRescan = if (searching) null else onScan,
+                            thumbnailLoader = thumbnailLoader,
+                            selectedKey = selected,
+                            onSelect = {
+                                selected = it
+                                selectedSubCategory = null
+                            },
+                            selectedSubCategoryKey = selectedSubCategory,
+                            onSelectSubCategory = { selectedSubCategory = it },
+                            onCategoryChange = onCategoryChange,
+                            onOpenFullscreen = { fullscreenImageId = it },
+                            onNavigateToDetails = { activeDetailId = it },
                         )
                     }
-                }
 
-                outcome is ScanOutcome.Failure -> ErrorPane(
-                    modifier = Modifier.fillMaxSize(),
-                    reason = outcome.reason,
-                    onScan = onScan,
-                )
-
-                outcome is ScanOutcome.Success -> {
-                    // Cached results stay visible while an incremental scan catches up.
-                    if (scanning) LinearProgressIndicator(Modifier.fillMaxWidth())
-                    SearchField(query = query, onQueryChange = onQueryChange)
-                    val searching = query.isNotBlank()
-                    CategoryBrowser(
-                        images = searchResults ?: outcome.images,
-                        emptyMessage = if (searching) {
-                            "No screenshots contain \u201C${query.trim()}\u201D."
-                        } else {
-                            "No images in this category yet."
-                        },
-                        onRescan = if (searching) null else onScan,
-                        thumbnailLoader = thumbnailLoader,
-                        selectedKey = selected,
-                        onSelect = {
-                            selected = it
-                            selectedSubCategory = null
-                        },
-                        selectedSubCategoryKey = selectedSubCategory,
-                        onSelectSubCategory = { selectedSubCategory = it },
-                        onCategoryChange = onCategoryChange,
+                    else -> EmptyLook(
+                        modifier = Modifier.fillMaxSize(),
+                        onScan = onScan,
                     )
                 }
-
-                else -> EmptyLook(
-                    modifier = Modifier.fillMaxSize(),
-                    onScan = onScan,
-                )
             }
         }
+    }
+
+    fullscreenImage?.let { img ->
+        FullscreenImageViewer(
+            image = img,
+            thumbnailLoader = thumbnailLoader,
+            onDismiss = { fullscreenImageId = null },
+        )
     }
 }
 
@@ -315,6 +361,8 @@ private fun CategoryBrowser(
     selectedSubCategoryKey: String?,
     onSelectSubCategory: (String?) -> Unit,
     onCategoryChange: (id: String, category: ImageCategory?) -> Unit,
+    onOpenFullscreen: (id: String) -> Unit,
+    onNavigateToDetails: (id: String) -> Unit,
 ) {
     // Track by id so the dialog shows the fresh record after a category change.
     var detailId by remember { mutableStateOf<String?>(null) }
@@ -418,6 +466,11 @@ private fun CategoryBrowser(
             thumbnailLoader = thumbnailLoader,
             onDismiss = { detailId = null },
             onCategoryChange = { onCategoryChange(detailImage.id, it) },
+            onOpenFullscreen = { onOpenFullscreen(detailImage.id) },
+            onNavigateToDetails = {
+                detailId = null
+                onNavigateToDetails(detailImage.id)
+            },
         )
     }
 }
@@ -509,7 +562,13 @@ private fun ImageCard(
                     modifier = Modifier.fillMaxSize(),
                 )
             }
-            if (!image.description.isNullOrEmpty() || !image.subCategory.isNullOrEmpty()) {
+            val summary = remember(image.ocrText, image.description) {
+                ScreenshotContentSummarizer.summarizeDigest(image.ocrText, image.description)
+            }
+            val hasSummary = summary.isNotBlank() && summary != "No text detected"
+            val hasSubCategory = !image.subCategory.isNullOrEmpty()
+
+            if (hasSummary || hasSubCategory) {
                 Box(
                     modifier = Modifier
                         .align(Alignment.BottomStart)
@@ -522,7 +581,7 @@ private fun ImageCard(
                         .padding(horizontal = 6.dp, vertical = 6.dp),
                 ) {
                     Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                        if (!image.subCategory.isNullOrEmpty()) {
+                        if (hasSubCategory) {
                             Surface(
                                 shape = RoundedCornerShape(4.dp),
                                 color = MaterialTheme.colorScheme.primary.copy(alpha = 0.9f),
@@ -535,9 +594,9 @@ private fun ImageCard(
                                 )
                             }
                         }
-                        if (!image.description.isNullOrEmpty()) {
+                        if (hasSummary) {
                             Text(
-                                text = image.description,
+                                text = summary,
                                 style = MaterialTheme.typography.labelSmall,
                                 color = Color.White,
                                 maxLines = 2,
@@ -552,11 +611,13 @@ private fun ImageCard(
 }
 
 @Composable
-private fun ImageDetailDialog(
+internal fun ImageDetailDialog(
     image: ImageRecord,
     thumbnailLoader: ThumbnailLoader,
     onDismiss: () -> Unit,
     onCategoryChange: (ImageCategory?) -> Unit,
+    onOpenFullscreen: () -> Unit,
+    onNavigateToDetails: () -> Unit,
 ) {
     var bitmap by remember(image.id) { mutableStateOf<ImageBitmap?>(null) }
     LaunchedEffect(image.id) {
@@ -566,6 +627,23 @@ private fun ImageDetailDialog(
     AlertDialog(
         onDismissRequest = onDismiss,
         confirmButton = {
+            FilledTonalButton(
+                onClick = {
+                    onDismiss()
+                    onNavigateToDetails()
+                },
+                shape = RoundedCornerShape(16.dp),
+            ) {
+                Icon(
+                    Icons.AutoMirrored.Rounded.ArrowForward,
+                    contentDescription = null,
+                    modifier = Modifier.size(16.dp),
+                )
+                Spacer(Modifier.width(6.dp))
+                Text("View Full Details")
+            }
+        },
+        dismissButton = {
             Button(
                 onClick = onDismiss,
                 shape = RoundedCornerShape(16.dp),
@@ -575,7 +653,9 @@ private fun ImageDetailDialog(
         },
         text = {
             Column(
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .verticalScroll(rememberScrollState()),
                 verticalArrangement = Arrangement.spacedBy(12.dp),
             ) {
                 val bmp = bitmap
@@ -584,7 +664,8 @@ private fun ImageDetailDialog(
                         .fillMaxWidth()
                         .height(260.dp)
                         .clip(RoundedCornerShape(12.dp))
-                        .background(MaterialTheme.colorScheme.surfaceVariant),
+                        .background(MaterialTheme.colorScheme.surfaceVariant)
+                        .clickable(onClick = onOpenFullscreen),
                     contentAlignment = Alignment.Center,
                 ) {
                     if (bmp != null) {
@@ -597,6 +678,29 @@ private fun ImageDetailDialog(
                     } else {
                         CircularProgressIndicator(modifier = Modifier.size(32.dp))
                     }
+
+                    // Floating fullscreen expand button in top-right corner
+                    IconButton(
+                        onClick = onOpenFullscreen,
+                        modifier = Modifier
+                            .align(Alignment.TopEnd)
+                            .padding(6.dp),
+                    ) {
+                        Surface(
+                            shape = RoundedCornerShape(18.dp),
+                            color = MaterialTheme.colorScheme.surface.copy(alpha = 0.85f),
+                            modifier = Modifier.size(36.dp),
+                        ) {
+                            Box(contentAlignment = Alignment.Center) {
+                                Icon(
+                                    Icons.Rounded.Fullscreen,
+                                    contentDescription = "Open Fullscreen",
+                                    modifier = Modifier.size(20.dp),
+                                    tint = MaterialTheme.colorScheme.onSurface,
+                                )
+                            }
+                        }
+                    }
                 }
 
                 Text(
@@ -605,6 +709,74 @@ private fun ImageDetailDialog(
                     maxLines = 2,
                     overflow = TextOverflow.Ellipsis,
                 )
+
+                // Summary card
+                val summary = remember(image.ocrText, image.description) {
+                    ScreenshotContentSummarizer.summarizeDigest(image.ocrText, image.description)
+                }
+                if (summary.isNotBlank() && summary != "No text detected") {
+                    Card(
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(10.dp),
+                        colors = CardDefaults.cardColors(
+                            containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+                        ),
+                    ) {
+                        Column(
+                            modifier = Modifier.padding(10.dp),
+                            verticalArrangement = Arrangement.spacedBy(4.dp),
+                        ) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(6.dp),
+                            ) {
+                                Icon(
+                                    Icons.Rounded.AutoAwesome,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(14.dp),
+                                    tint = MaterialTheme.colorScheme.primary,
+                                )
+                                Text(
+                                    text = "Summary",
+                                    style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.SemiBold),
+                                    color = MaterialTheme.colorScheme.primary,
+                                )
+                            }
+                            Text(
+                                text = summary,
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurface,
+                            )
+                        }
+                    }
+                }
+
+                // Key highlights if any
+                val highlights = remember(image.ocrText) {
+                    ScreenshotContentSummarizer.extractHighlights(image.ocrText)
+                }
+                if (highlights.isNotEmpty()) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    ) {
+                        highlights.take(2).forEach { (label, value) ->
+                            Surface(
+                                shape = RoundedCornerShape(8.dp),
+                                color = MaterialTheme.colorScheme.primary.copy(alpha = 0.08f),
+                            ) {
+                                Text(
+                                    text = "$label: $value",
+                                    style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Medium),
+                                    color = MaterialTheme.colorScheme.primary,
+                                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis,
+                                )
+                            }
+                        }
+                    }
+                }
 
                 Row(
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -647,7 +819,7 @@ private fun ImageDetailDialog(
                     )
                 }
 
-                if (!image.description.isNullOrEmpty()) {
+                if (!image.description.isNullOrEmpty() && image.description != summary) {
                     Text(
                         text = image.description,
                         style = MaterialTheme.typography.bodyMedium,
