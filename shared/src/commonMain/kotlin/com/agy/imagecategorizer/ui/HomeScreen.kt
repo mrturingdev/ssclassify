@@ -157,10 +157,16 @@ fun HomeScreen(
             topBar = {
                 CenterAlignedTopAppBar(
                     title = {
-                        Text(
-                            "S.S. Classify",
-                            style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.SemiBold),
-                        )
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        ) {
+                            AppLogo(size = 22.dp)
+                            Text(
+                                "S.S. Classify",
+                                style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.SemiBold),
+                            )
+                        }
                     },
                     actions = {
                         IconButton(onClick = onScan, enabled = !scanning) {
