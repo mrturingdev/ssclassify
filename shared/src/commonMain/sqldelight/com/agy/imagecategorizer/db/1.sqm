@@ -1,0 +1,17 @@
+-- v1 -> v2: add the full-text index and backfill it from existing rows.
+CREATE VIRTUAL TABLE screenshot_fts USING fts4(ocr_text, name);
+
+CREATE TRIGGER screenshot_fts_after_insert AFTER INSERT ON screenshot BEGIN
+    INSERT INTO screenshot_fts(rowid, ocr_text, name) VALUES (new.rowid, new.ocr_text, new.name);
+END;
+
+CREATE TRIGGER screenshot_fts_after_delete AFTER DELETE ON screenshot BEGIN
+    DELETE FROM screenshot_fts WHERE rowid = old.rowid;
+END;
+
+CREATE TRIGGER screenshot_fts_after_update AFTER UPDATE ON screenshot BEGIN
+    DELETE FROM screenshot_fts WHERE rowid = old.rowid;
+    INSERT INTO screenshot_fts(rowid, ocr_text, name) VALUES (new.rowid, new.ocr_text, new.name);
+END;
+
+INSERT INTO screenshot_fts(rowid, ocr_text, name) SELECT rowid, ocr_text, name FROM screenshot;

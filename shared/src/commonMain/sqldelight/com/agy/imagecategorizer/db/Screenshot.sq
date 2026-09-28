@@ -1,0 +1,76 @@
+-- One row per analyzed screenshot. The category is not stored: it is derived
+-- from ocr_text on read, so classifier rule changes apply without a rescan.
+CREATE TABLE screenshot (
+    id TEXT NOT NULL PRIMARY KEY,
+    name TEXT NOT NULL,
+    folder TEXT NOT NULL,
+    relative_path TEXT NOT NULL,
+    width INTEGER NOT NULL,
+    height INTEGER NOT NULL,
+    date_millis INTEGER NOT NULL,
+    modified_millis INTEGER NOT NULL,
+    ocr_text TEXT NOT NULL,
+    sub_category TEXT,
+    description TEXT
+);
+
+CREATE INDEX screenshot_date ON screenshot(date_millis DESC);
+
+-- Full-text index over OCR text and file name, keyed by screenshot.rowid and
+-- kept in sync by triggers. Rows are replaced with delete + insert (not
+-- INSERT OR REPLACE, which skips delete triggers). FTS4, not FTS5: Android's
+-- framework SQLite does not ship FTS5.
+CREATE VIRTUAL TABLE screenshot_fts USING fts4(ocr_text, name);
+
+CREATE TRIGGER screenshot_fts_after_insert AFTER INSERT ON screenshot BEGIN
+    INSERT INTO screenshot_fts(rowid, ocr_text, name) VALUES (new.rowid, new.ocr_text, new.name);
+END;
+
+CREATE TRIGGER screenshot_fts_after_delete AFTER DELETE ON screenshot BEGIN
+    DELETE FROM screenshot_fts WHERE rowid = old.rowid;
+END;
+
+CREATE TRIGGER screenshot_fts_after_update AFTER UPDATE ON screenshot BEGIN
+    DELETE FROM screenshot_fts WHERE rowid = old.rowid;
+    INSERT INTO screenshot_fts(rowid, ocr_text, name) VALUES (new.rowid, new.ocr_text, new.name);
+END;
+
+-- User category corrections. Separate from screenshot so they survive the
+-- delete + insert that re-analysis does; the repository removes them when the
+-- screenshot itself is gone.
+CREATE TABLE category_override (
+    screenshot_id TEXT NOT NULL PRIMARY KEY,
+    category TEXT NOT NULL
+);
+
+selectAll:
+SELECT screenshot.*, category_override.category AS override_category
+FROM screenshot
+LEFT JOIN category_override ON category_override.screenshot_id = screenshot.id
+ORDER BY screenshot.date_millis DESC;
+
+selectById:
+SELECT * FROM screenshot WHERE id = ?;
+
+selectStamps:
+SELECT id, modified_millis FROM screenshot;
+
+insert:
+INSERT INTO screenshot VALUES ?;
+
+deleteById:
+DELETE FROM screenshot WHERE id = ?;
+
+search:
+SELECT screenshot.*, category_override.category AS override_category
+FROM screenshot_fts
+JOIN screenshot ON screenshot.rowid = screenshot_fts.rowid
+LEFT JOIN category_override ON category_override.screenshot_id = screenshot.id
+WHERE screenshot_fts MATCH :query
+ORDER BY screenshot.date_millis DESC;
+
+setOverride:
+INSERT OR REPLACE INTO category_override(screenshot_id, category) VALUES (?, ?);
+
+deleteOverride:
+DELETE FROM category_override WHERE screenshot_id = ?;

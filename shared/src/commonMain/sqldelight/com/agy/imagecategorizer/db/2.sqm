@@ -1,0 +1,5 @@
+-- v2 -> v3: user category corrections.
+CREATE TABLE category_override (
+    screenshot_id TEXT NOT NULL PRIMARY KEY,
+    category TEXT NOT NULL
+);
