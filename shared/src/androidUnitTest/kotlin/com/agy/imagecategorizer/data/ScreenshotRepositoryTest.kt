@@ -3,6 +3,7 @@ package com.agy.imagecategorizer.data
 import app.cash.sqldelight.driver.jdbc.sqlite.JdbcSqliteDriver
 import com.agy.imagecategorizer.PERMISSION_DENIED
 import com.agy.imagecategorizer.db.ScreenshotDatabase
+import com.agy.imagecategorizer.model.CategorySource
 import com.agy.imagecategorizer.model.ImageCategory
 import kotlinx.coroutines.runBlocking
 import kotlin.test.Test
@@ -181,6 +182,35 @@ class ScreenshotRepositoryTest {
     }
 
     @Test
+    fun correctionTeachesSimilarScreenshotsUntilReset() = runBlocking {
+        val gym = "Pulse Fitness Club membership renewal class Trainer Studio Book now"
+        val source = FakeSource(
+            assets = listOf(asset("a", date = 3), asset("b", date = 2), asset("c", date = 1)),
+            text = mapOf(
+                "a" to "$gym Yoga Tuesday 6pm Anita",
+                "b" to "$gym Zumba Friday 7pm Bikash",
+                "c" to "Boarding pass Flight Gate Seat Departure",
+            ),
+        )
+        val repo = repository(source)
+        repo.scan()
+        val before = repo.cached().associateBy { it.id }
+        assertEquals(CategorySource.Rules, before.getValue("b").source)
+
+        repo.setCategory("a", ImageCategory.Health)
+        val after = repo.cached().associateBy { it.id }
+        assertEquals(CategorySource.User, after.getValue("a").source)
+        assertEquals(before.getValue("a").category, after.getValue("a").autoCategory, "own correction is not its own evidence")
+        assertEquals(ImageCategory.Health, after.getValue("b").category)
+        assertEquals(CategorySource.Learned, after.getValue("b").source)
+        assertEquals(before.getValue("c"), after.getValue("c"), "unrelated screenshot untouched")
+        assertEquals(ImageCategory.Health, repo.search("zumba").single().category, "search applies learning")
+
+        repo.setCategory("a", null)
+        assertEquals(before, repo.cached().associateBy { it.id })
+    }
+
+    @Test
     fun deniedAccessKeepsCacheAndReportsPermission() = runBlocking {
         val source = FakeSource(listOf(asset("a")), mapOf("a" to "invoice"))
         val repo = repository(source)
@@ -189,5 +219,17 @@ class ScreenshotRepositoryTest {
         source.granted = false
         assertEquals(ScanOutcome.Failure(PERMISSION_DENIED), repo.scan())
         assertEquals(listOf("a"), repo.cached().map { it.id })
+    }
+
+    @Test
+    fun cachedRecordsIncludeOcrText() = runBlocking {
+        val source = FakeSource(
+            assets = listOf(asset("a", date = 1)),
+            text = mapOf("a" to "Total $50.00 Paid"),
+        )
+        val repo = repository(source)
+        repo.scan()
+        val record = repo.cached().single()
+        assertEquals("Total $50.00 Paid", record.ocrText)
     }
 }

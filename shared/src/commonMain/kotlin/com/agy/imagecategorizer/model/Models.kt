@@ -16,6 +16,18 @@ enum class ImageCategory(val displayName: String) {
     Other("Uncategorized"),
 }
 
+/** Where an [ImageRecord.category] came from, strongest first. */
+enum class CategorySource {
+    /** The user picked it for this screenshot. */
+    User,
+
+    /** Copied from similar screenshots the user corrected. */
+    Learned,
+
+    /** Keyword rules over OCR text and file name. */
+    Rules,
+}
+
 data class ImageRecord(
     val id: String,
     val name: String,
@@ -27,10 +39,14 @@ data class ImageRecord(
     val category: ImageCategory,
     val subCategory: String? = null,
     val description: String? = null,
-    /** What the classifier picked; [category] is the user's pick instead when [isCategoryCorrected]. */
+    /** What the app would pick on its own; [category] differs only when [source] is [CategorySource.User]. */
     val autoCategory: ImageCategory = category,
-    val isCategoryCorrected: Boolean = false,
+    val source: CategorySource = CategorySource.Rules,
+    val ocrText: String = "",
 ) {
+    val isCategoryCorrected: Boolean
+        get() = source == CategorySource.User
+
     val aspectRatio: Float
         get() = if (height > 0) width.toFloat() / height.toFloat() else 0f
 }

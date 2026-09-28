@@ -2,9 +2,11 @@ package com.agy.imagecategorizer.data
 
 import app.cash.sqldelight.db.SqlDriver
 import com.agy.imagecategorizer.PERMISSION_DENIED
+import com.agy.imagecategorizer.classify.CorrectionLearner
 import com.agy.imagecategorizer.classify.ScreenshotCategorizer
 import com.agy.imagecategorizer.db.Screenshot
 import com.agy.imagecategorizer.db.ScreenshotDatabase
+import com.agy.imagecategorizer.model.CategorySource
 import com.agy.imagecategorizer.model.ImageCategory
 import com.agy.imagecategorizer.model.ImageRecord
 import kotlinx.coroutines.CancellationException
@@ -35,7 +37,8 @@ class ScreenshotRepository(
      */
     suspend fun search(input: String): List<ImageRecord> = withContext(Dispatchers.IO) {
         val query = ftsQuery(input) ?: return@withContext loadAll()
-        queries.search(query, ::toRecord).executeAsList()
+        val learner = learnerFor(queries.selectAll(::Row).executeAsList())
+        queries.search(query, ::Row).executeAsList().map { it.toRecord(learner) }
     }
 
     /** Pins a user-chosen category on a screenshot; null resets it to the automatic one. */
@@ -94,27 +97,21 @@ class ScreenshotRepository(
         }
     }
 
-    private fun loadAll(): List<ImageRecord> = queries.selectAll(::toRecord).executeAsList()
+    private fun loadAll(): List<ImageRecord> {
+        val rows = queries.selectAll(::Row).executeAsList()
+        val learner = learnerFor(rows)
+        return rows.map { it.toRecord(learner) }
+    }
 
-    // Shared row mapper for selectAll and search (same columns).
-    @Suppress("UNUSED_PARAMETER")
-    private fun toRecord(
-        id: String,
-        name: String,
-        folder: String,
-        relative_path: String,
-        width: Long,
-        height: Long,
-        date_millis: Long,
-        modified_millis: Long,
-        ocr_text: String,
-        sub_category: String?,
-        description: String?,
-        override_category: String?,
-    ): ImageRecord {
-        val auto = ScreenshotCategorizer.categorize(ocr_text, name)
-        // An override naming a category that no longer exists falls back to automatic.
-        val override = ImageCategory.entries.firstOrNull { it.name == override_category }
+    // ponytail: rebuilt on every load (tokenizes the whole library); cache it and invalidate on sync/setCategory if loads get slow
+    private fun learnerFor(library: List<Row>) = CorrectionLearner(
+        library = library.map { it.doc },
+        corrections = library.mapNotNull { row -> row.override?.let { CorrectionLearner.Correction(row.doc, it) } },
+    )
+
+    private fun Row.toRecord(learner: CorrectionLearner): ImageRecord {
+        val learned = learner.categorize(doc)
+        val auto = learned ?: ScreenshotCategorizer.categorize(ocr_text, name)
         return ImageRecord(
             id = id,
             name = name,
@@ -127,8 +124,34 @@ class ScreenshotRepository(
             subCategory = sub_category,
             description = description,
             autoCategory = auto,
-            isCategoryCorrected = override != null,
+            source = when {
+                override != null -> CategorySource.User
+                learned != null -> CategorySource.Learned
+                else -> CategorySource.Rules
+            },
+            ocrText = ocr_text,
         )
+    }
+
+    /** Row shape shared by selectAll and search (same columns, so the constructor is the mapper). */
+    @Suppress("unused")
+    private class Row(
+        val id: String,
+        val name: String,
+        val folder: String,
+        val relative_path: String,
+        val width: Long,
+        val height: Long,
+        val date_millis: Long,
+        val modified_millis: Long,
+        val ocr_text: String,
+        val sub_category: String?,
+        val description: String?,
+        override_category: String?,
+    ) {
+        // An override naming a category that no longer exists falls back to automatic.
+        val override: ImageCategory? = ImageCategory.entries.firstOrNull { it.name == override_category }
+        val doc = CorrectionLearner.Doc(id, ocr_text, name)
     }
 }
 
