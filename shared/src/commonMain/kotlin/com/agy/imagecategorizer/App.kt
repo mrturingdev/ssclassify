@@ -35,12 +35,21 @@ private val DarkCanvas = Color(0xFF121212)
 private val DarkTile = Color(0xFF1E1E20)
 private val DarkInk = Color(0xFFF5F5F7)
 
+// Selection tints of Action Blue, so chips and toggles never fall back to Material's lavender.
+private val LightSelection = Color(0xFFE3EEFB)
+private val LightOnSelection = Color(0xFF003A75)
+private val DarkSelection = Color(0xFF1B3A5E)
+private val DarkOnSelection = Color(0xFFD6E6FF)
+
 @Composable
 fun App(isPermissionGranted: Boolean = true) {
     val darkTheme = isSystemInDarkTheme()
     val colorScheme = if (darkTheme) {
         darkColorScheme(
             primary = ActionBlue,
+            onPrimary = Color.White,
+            secondaryContainer = DarkSelection,
+            onSecondaryContainer = DarkOnSelection,
             background = DarkCanvas,
             surface = DarkCanvas,
             surfaceVariant = DarkTile,
@@ -50,6 +59,9 @@ fun App(isPermissionGranted: Boolean = true) {
     } else {
         lightColorScheme(
             primary = ActionBlue,
+            onPrimary = Color.White,
+            secondaryContainer = LightSelection,
+            onSecondaryContainer = LightOnSelection,
             background = LightCanvas,
             surface = LightCanvas,
             surfaceVariant = LightParchment,
