@@ -2,10 +2,12 @@ import SwiftUI
 import WidgetKit
 
 // Tokens from .design/DESIGN.md and the app's grid card (ImageCard in HomeScreen.kt):
-// spacing.xxs gutter, spacing.xs padding, 10pt tile corners, Action Blue badges.
+// spacing.sm content padding, spacing.xs header gap, the app grid's 6pt tile gutter,
+// 10pt tile corners, Action Blue badges.
 private enum Tokens {
-    static let gutter: CGFloat = 4
-    static let padding: CGFloat = 8
+    static let padding: CGFloat = 12
+    static let headerGap: CGFloat = 8
+    static let gutter: CGFloat = 6
     static let headerHeight: CGFloat = 28
     static let tileRadius: CGFloat = 10
     static let canvas = Color(light: 0xF5F5F7, dark: 0x272729)
@@ -17,6 +19,14 @@ private enum Tokens {
 /// Columns per family; both families are square, so rows match.
 private func columns(for family: WidgetFamily) -> Int {
     family == .systemSmall ? 2 : 3
+}
+
+/// The largest square tile that fits a full columns x columns grid in [grid], the
+/// area below the header. Shared by the view and the thumbnail request.
+private func tileSide(inGrid grid: CGSize, columns: Int) -> CGFloat {
+    let gaps = CGFloat(columns - 1) * Tokens.gutter
+    let side = min(grid.width - gaps, grid.height - gaps) / CGFloat(columns)
+    return max(side.rounded(.down), 1)
 }
 
 struct RecentScreenshotsEntry: TimelineEntry {
@@ -59,7 +69,11 @@ struct RecentScreenshotsProvider: TimelineProvider {
         let columns = columns(for: context.family)
         let limit = columns * columns
         // ponytail: assumes a 3x display; 2x devices get a slightly larger image that the system downsamples
-        let pixels = cellSide(in: context.displaySize, columns: columns) * 3
+        let gridArea = CGSize(
+            width: context.displaySize.width - 2 * Tokens.padding,
+            height: context.displaySize.height - 2 * Tokens.padding - Tokens.headerHeight - Tokens.headerGap
+        )
+        let pixels = tileSide(inGrid: gridArea, columns: columns) * 3
 
         // The app's snapshot carries categories and captions; without one (never scanned)
         // fall back to the newest screenshots straight from Photos.
@@ -87,13 +101,6 @@ struct RecentScreenshotsProvider: TimelineProvider {
             completion(Timeline(entries: [RecentScreenshotsEntry(date: now, content: content)], policy: .after(next)))
         }
     }
-
-    /// Point size of one grid cell, matching RecentScreenshotsView's layout.
-    private func cellSide(in size: CGSize, columns: Int) -> CGFloat {
-        let side = min(size.width, size.height - Tokens.headerHeight) - 2 * Tokens.padding
-        let gaps = CGFloat(columns - 1) * Tokens.gutter
-        return max((side - gaps) / CGFloat(columns), 1)
-    }
 }
 
 struct RecentScreenshotsView: View {
@@ -111,7 +118,7 @@ struct RecentScreenshotsView: View {
     @ViewBuilder private var content: some View {
         switch entry.content {
         case .placeholder:
-            VStack(spacing: Tokens.gutter) {
+            VStack(spacing: Tokens.headerGap) {
                 header(title: "All", canCycle: false)
                 grid(Array(repeating: nil, count: columns(for: family) * columns(for: family)))
             }
@@ -120,7 +127,7 @@ struct RecentScreenshotsView: View {
         case .tiles(_, _, let tiles) where tiles.isEmpty:
             message("No screenshots yet.")
         case .tiles(let title, let canCycle, let tiles):
-            VStack(spacing: Tokens.gutter) {
+            VStack(spacing: Tokens.headerGap) {
                 header(title: title, canCycle: canCycle)
                 grid(tiles.map { Optional($0) })
             }
@@ -165,16 +172,23 @@ struct RecentScreenshotsView: View {
         }
     }
 
+    /// Fixed square tiles sized so a full grid always fits below the header; fewer
+    /// tiles leave the rest of the grid empty rather than stretching.
     private func grid(_ tiles: [RecentScreenshotsEntry.Tile?]) -> some View {
-        let columns = Array(repeating: GridItem(.flexible(), spacing: Tokens.gutter), count: columns(for: family))
-        return LazyVGrid(columns: columns, spacing: Tokens.gutter) {
-            ForEach(tiles.indices, id: \.self) { index in
-                if let tile = tiles[index], family != .systemSmall {
-                    Link(destination: detailURL(tile.id)) { tileView(tile) }
-                } else {
-                    tileView(tiles[index])
+        let count = columns(for: family)
+        return GeometryReader { proxy in
+            let side = tileSide(inGrid: proxy.size, columns: count)
+            let items = Array(repeating: GridItem(.fixed(side), spacing: Tokens.gutter), count: count)
+            LazyVGrid(columns: items, spacing: Tokens.gutter) {
+                ForEach(tiles.indices, id: \.self) { index in
+                    if let tile = tiles[index], family != .systemSmall {
+                        Link(destination: detailURL(tile.id)) { tileView(tile) }
+                    } else {
+                        tileView(tiles[index])
+                    }
                 }
             }
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
         }
     }
 
