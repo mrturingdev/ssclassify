@@ -17,6 +17,7 @@ kotlin {
     sourceSets {
         androidMain.dependencies {
             implementation(project(":shared"))
+            implementation(project(":aicore"))
             implementation(libs.androidx.activity.compose)
         }
         androidUnitTest.dependencies {

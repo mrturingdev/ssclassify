@@ -3,6 +3,8 @@ package com.agy.imagecategorizer.data
 import app.cash.sqldelight.db.SqlDriver
 import com.agy.imagecategorizer.PERMISSION_DENIED
 import com.agy.imagecategorizer.classify.CorrectionLearner
+import com.agy.imagecategorizer.classify.ObjectSource
+import com.agy.imagecategorizer.classify.OcrTextProcessor
 import com.agy.imagecategorizer.classify.ScreenshotCategorizer
 import com.agy.imagecategorizer.db.Screenshot
 import com.agy.imagecategorizer.db.ScreenshotDatabase
@@ -44,6 +46,21 @@ class ScreenshotRepository(
     /** Pins a user-chosen category on a screenshot; null resets it to the automatic one. */
     suspend fun setCategory(id: String, category: ImageCategory?) = withContext(Dispatchers.IO) {
         if (category == null) queries.deleteOverride(id) else queries.setOverride(id, category.name)
+    }
+
+    /** Permanently deletes screenshots from the device and removes them from the local database. */
+    suspend fun deleteScreenshots(ids: List<String>): List<String> = withContext(Dispatchers.IO) {
+        if (ids.isEmpty()) return@withContext emptyList()
+        val deleted = source.deleteScreenshots(ids)
+        if (deleted.isNotEmpty()) {
+            queries.transaction {
+                deleted.forEach { id ->
+                    queries.deleteById(id)
+                    queries.deleteOverride(id)
+                }
+            }
+        }
+        deleted
     }
 
     suspend fun scan(): ScanOutcome = try {
@@ -88,9 +105,11 @@ class ScreenshotRepository(
                         height = asset.height.toLong(),
                         date_millis = asset.dateMillis,
                         modified_millis = asset.modifiedMillis,
-                        ocr_text = analysis.ocrText,
+                        ocr_text = analysis.rawText,
                         sub_category = analysis.subCategory,
                         description = analysis.description,
+                        filtered_text = analysis.filteredText,
+                        object_source = analysis.objectSource?.name,
                     ),
                 )
             }
@@ -111,7 +130,7 @@ class ScreenshotRepository(
 
     private fun Row.toRecord(learner: CorrectionLearner): ImageRecord {
         val learned = learner.categorize(doc)
-        val auto = learned ?: ScreenshotCategorizer.categorize(ocr_text, name)
+        val auto = learned ?: ScreenshotCategorizer.categorize(filtered, name)
         return ImageRecord(
             id = id,
             name = name,
@@ -129,7 +148,9 @@ class ScreenshotRepository(
                 learned != null -> CategorySource.Learned
                 else -> CategorySource.Rules
             },
-            ocrText = ocr_text,
+            ocrText = filtered,
+            rawOcrText = ocr_text,
+            objectSource = ObjectSource.entries.firstOrNull { it.name == object_source },
         )
     }
 
@@ -147,11 +168,18 @@ class ScreenshotRepository(
         val ocr_text: String,
         val sub_category: String?,
         val description: String?,
+        filtered_text: String?,
+        val object_source: String?,
         override_category: String?,
     ) {
         // An override naming a category that no longer exists falls back to automatic.
         val override: ImageCategory? = ImageCategory.entries.firstOrNull { it.name == override_category }
-        val doc = CorrectionLearner.Doc(id, ocr_text, name)
+
+        // Rows from before v4 have no positioned lines; clean their text until the rescan replaces it.
+        val filtered: String = filtered_text ?: OcrTextProcessor.cleanText(ocr_text)
+
+        // Category signals come from the filtered text, like the keyword rules.
+        val doc = CorrectionLearner.Doc(id, filtered, name)
     }
 }
 

@@ -6,6 +6,8 @@ import android.content.Context
 import android.content.Intent
 import android.database.ContentObserver
 import android.graphics.Bitmap
+import android.graphics.BitmapFactory
+import android.graphics.Color
 import android.net.Uri
 import android.os.Build
 import android.os.Handler
@@ -13,13 +15,24 @@ import android.os.Looper
 import android.provider.MediaStore
 import app.cash.sqldelight.db.SqlDriver
 import app.cash.sqldelight.driver.android.AndroidSqliteDriver
+import com.agy.imagecategorizer.classify.BlankScreenDetector
+import com.agy.imagecategorizer.classify.BlankScreenType
+import com.agy.imagecategorizer.classify.DetectedObject
+import com.agy.imagecategorizer.classify.ImageContentAnalyzer
+import com.agy.imagecategorizer.classify.ObjectResolver
+import com.agy.imagecategorizer.classify.ObjectSource
 import com.agy.imagecategorizer.classify.OcrHelper
+import com.agy.imagecategorizer.classify.OcrLine
+import com.agy.imagecategorizer.classify.OcrMeaningProvider
+import com.agy.imagecategorizer.classify.OcrTextProcessor
 import com.agy.imagecategorizer.classify.ScreenshotCategorizer
 import com.agy.imagecategorizer.classify.TensorFlowVisionHelper
 import com.agy.imagecategorizer.db.ScreenshotDatabase
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.callbackFlow
+import kotlinx.coroutines.withContext
 
 object AndroidApp {
     lateinit var context: Context
@@ -51,6 +64,23 @@ actual class MediaScanner actual constructor() : ScreenshotSource {
 
     // MainActivity requests the runtime permission before the UI starts.
     override suspend fun ensureAccess(): Boolean = hasPhotoAccess(AndroidApp.context)
+
+    actual override suspend fun deleteScreenshots(ids: List<String>): List<String> = withContext(Dispatchers.IO) {
+        val resolver = AndroidApp.context.contentResolver
+        val deleted = mutableListOf<String>()
+        for (id in ids) {
+            try {
+                val uri = Uri.parse(id)
+                val count = resolver.delete(uri, null, null)
+                if (count > 0) {
+                    deleted += id
+                }
+            } catch (_: Exception) {
+                // If permission denied or missing, do not abort remaining deletes
+            }
+        }
+        deleted
+    }
 
     override suspend fun listScreenshots(): List<ScreenshotAsset> {
         val resolver = AndroidApp.context.contentResolver
@@ -126,9 +156,10 @@ actual class MediaScanner actual constructor() : ScreenshotSource {
         val context = AndroidApp.context
         val tfHelper = TensorFlowVisionHelper(context)
         val ocrHelper = OcrHelper()
+        val meaningProvider = OcrMeaningProvider()
         try {
             for (asset in assets) {
-                onResult(asset, analyzeOne(context, Uri.parse(asset.id), tfHelper, ocrHelper))
+                onResult(asset, analyzeOne(context, Uri.parse(asset.id), tfHelper, ocrHelper, meaningProvider))
             }
         } finally {
             tfHelper.close()
@@ -143,82 +174,148 @@ actual class MediaScanner actual constructor() : ScreenshotSource {
         context.sendBroadcast(Intent(AppWidgetManager.ACTION_APPWIDGET_UPDATE).setPackage(context.packageName))
     }
 
-    // OCR text drives the category; TF Vision labels feed the sub-category
-    private fun analyzeOne(
+    /**
+     * One OCR pass over the whole image yields both the raw text and the
+     * filtered central-90% text. The object comes from that text when it names
+     * one; TensorFlow Lite only runs for text-light (image-first) screenshots.
+     * Android AICore extracts proper meaning and synthesized message.
+     */
+    private suspend fun analyzeOne(
         context: Context,
         mediaUri: Uri,
         tfHelper: TensorFlowVisionHelper,
         ocrHelper: OcrHelper,
+        meaningProvider: OcrMeaningProvider,
     ): ScreenshotAnalysis {
-        var ocrText = ""
-        var subCategory: String? = null
-        var description = ""
+        val bitmap = try {
+            loadBitmap(context, mediaUri)
+        } catch (e: Exception) {
+            null
+        } ?: return ScreenshotAnalysis("")
 
         try {
-            val bitmap = loadBitmap(context, mediaUri) ?: return ScreenshotAnalysis("")
+            val lines = ocrHelper.recognizeLines(bitmap)
+            val text = OcrTextProcessor.process(lines)
+            val detected = ObjectResolver.fromText(text.filtered)
+                ?: if (ObjectResolver.needsImageModel(text.filtered)) classifyImageRegion(bitmap, lines, tfHelper) else null
 
-            // 1. TF Vision
-            val results = tfHelper.classify(bitmap)
-            val bestMatch = results.maxByOrNull { it.confidence }
-
-            val tfLabels = results.filter { it.confidence > 0.15f }.take(3).map { it.label }
-            if (tfLabels.isNotEmpty()) {
-                description += "Objects: ${tfLabels.joinToString(", ")}. "
+            // Detect solid black or plain white screen with no text
+            val blankType = if (detected == null && text.filtered.isBlank()) {
+                val pixelSource = object : ImageContentAnalyzer.PixelSource {
+                    override val width: Int = bitmap.width
+                    override val height: Int = bitmap.height
+                    override fun argb(x: Int, y: Int): Int = bitmap.getPixel(x, y)
+                }
+                BlankScreenDetector.detect(pixelSource, text.raw)
+            } else {
+                BlankScreenType.None
             }
 
-            if (bestMatch != null && bestMatch.confidence > 0.3f) {
-                // Extract the specific prominent object as the subCategory
-                subCategory = bestMatch.label.split(",").first().replaceFirstChar { it.uppercase() }
+            val finalDetected = when (blankType) {
+                BlankScreenType.BlackScreen, BlankScreenType.WhiteScreen ->
+                    DetectedObject(BlankScreenDetector.LABEL_BLANK_SCREEN, ObjectSource.Ocr)
+                BlankScreenType.None -> detected
             }
 
-            // 2. OCR Text Recognition
-            val rawText = ocrHelper.extractText(bitmap)
-            ocrText = rawText
-            val text = rawText.lowercase()
-            if (text.isNotEmpty()) {
-                val cleanText = rawText.replace("\n", " ").trim()
-                val snippet = if (cleanText.length > 50) cleanText.take(47) + "..." else cleanText
-                description += "Text: \"$snippet\""
+            // Extract semantic meaning via AICore
+            val meaning = meaningProvider.extractMeaning(text.raw, text.filtered)
 
-                // Extract explicitly mentioned category if present
-                val categoryRegex = Regex("category:\\s*([a-zA-Z]+)", RegexOption.IGNORE_CASE)
-                val match = categoryRegex.find(rawText)
-
-                if (match != null) {
-                    subCategory = match.groupValues[1].replaceFirstChar { it.uppercase() }
+            val resolvedSubCategory = finalDetected?.label ?: meaning.subCategory
+            val finalDescription = when (blankType) {
+                BlankScreenType.BlackScreen -> "Solid black screen with no text."
+                BlankScreenType.WhiteScreen -> "Plain white screen with no text."
+                BlankScreenType.None -> if (meaning.message.isNotBlank() && meaning.message != "No text detected") {
+                    meaning.message
                 } else {
-                    // Extract the specific keyword from the text rather than broad buckets
-                    val specificKeywords = listOf(
-                        "invoice", "receipt", "ticket", "boarding pass", "menu",
-                        "balance", "retweet", "reply", "payment", "order",
-                    )
-                    val foundKeyword = specificKeywords.firstOrNull { text.contains(it) }
-                    if (foundKeyword != null) {
-                        subCategory = foundKeyword.split(" ").joinToString(" ") { word ->
-                            word.replaceFirstChar { c -> c.uppercase() }
-                        }
-                    }
+                    describe(finalDetected, text.filtered)
                 }
             }
 
-            bitmap.recycle() // Prevent memory leaks
+            return ScreenshotAnalysis(
+                rawText = text.raw,
+                filteredText = text.filtered,
+                subCategory = resolvedSubCategory,
+                objectSource = finalDetected?.source ?: if (meaning.subCategory != null) ObjectSource.Ocr else null,
+                description = finalDescription,
+            )
         } catch (e: Exception) {
-            // Ignore thumbnail/TF/OCR errors
+            return ScreenshotAnalysis("") // a failed model run must not abort the whole scan
+        } finally {
+            bitmap.recycle()
         }
-        return ScreenshotAnalysis(ocrText, subCategory, description.takeIf { it.isNotEmpty() })
     }
 
-    // Use 512x512 so OCR has enough resolution to read text
-    private fun loadBitmap(context: Context, mediaUri: Uri): Bitmap? =
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-            context.contentResolver.loadThumbnail(mediaUri, android.util.Size(512, 512), null)
-        } else {
-            @Suppress("DEPRECATION")
-            MediaStore.Images.Thumbnails.getThumbnail(
-                context.contentResolver, ContentUris.parseId(mediaUri),
-                MediaStore.Images.Thumbnails.MINI_KIND, null,
-            )
+    /**
+     * Classifies only the photo inside the screenshot: the tallest text-free
+     * band of the focus region, trimmed of blank rows. On the whole screen
+     * MobileNet sees mostly white UI and answers "web site". No band, no photo:
+     * the model is skipped.
+     */
+    private fun classifyImageRegion(
+        bitmap: Bitmap,
+        lines: List<OcrLine>,
+        tfHelper: TensorFlowVisionHelper,
+    ): DetectedObject? {
+        val (bandTop, bandBottom) = OcrTextProcessor.textFreeBand(lines) ?: return null
+        val left = (bitmap.width * OcrTextProcessor.FOCUS_MARGIN).toInt()
+        val right = bitmap.width - left
+        var top = (bitmap.height * bandTop).toInt()
+        var bottom = (bitmap.height * bandBottom).toInt()
+        while (top < bottom && isBlankRow(bitmap, top, left, right)) top++
+        while (bottom > top && isBlankRow(bitmap, bottom - 1, left, right)) bottom--
+        if (bottom - top < bitmap.height * 0.1f) return null // only blank space, no photo
+        val region = Bitmap.createBitmap(bitmap, left, top, right - left, bottom - top)
+        return try {
+            ObjectResolver.fromImageLabels(tfHelper.classify(region))
+        } finally {
+            region.recycle()
         }
+    }
+
+    /** A row whose sampled pixels all match its first pixel (within a small tolerance) is background. */
+    private fun isBlankRow(bitmap: Bitmap, y: Int, left: Int, right: Int): Boolean {
+        val reference = bitmap.getPixel(left, y)
+        var x = left
+        while (x < right) {
+            val pixel = bitmap.getPixel(x, y)
+            val diff = kotlin.math.abs(Color.red(pixel) - Color.red(reference)) +
+                kotlin.math.abs(Color.green(pixel) - Color.green(reference)) +
+                kotlin.math.abs(Color.blue(pixel) - Color.blue(reference))
+            if (diff > BLANK_ROW_TOLERANCE) return false
+            x += 8
+        }
+        return true
+    }
+
+    private fun describe(detected: DetectedObject?, filtered: String): String? {
+        val parts = buildList {
+            if (detected?.source == ObjectSource.TensorFlowLite) add("Object: ${detected.label}.")
+            val flat = filtered.replace("\n", " ").trim()
+            if (flat.isNotEmpty()) add("Text: \"${if (flat.length > 50) flat.take(47) + "..." else flat}\"")
+        }
+        return parts.joinToString(" ").ifEmpty { null }
+    }
+
+    /**
+     * Decodes close to full resolution for OCR: screenshot text needs its real
+     * pixel height (a 512 px thumbnail shrinks a 1080x2340 screen to 236 px wide).
+     * Downsamples by powers of two only above [OCR_MAX_SIDE].
+     */
+    private fun loadBitmap(context: Context, mediaUri: Uri): Bitmap? {
+        val resolver = context.contentResolver
+        val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
+        resolver.openInputStream(mediaUri)?.use { BitmapFactory.decodeStream(it, null, bounds) }
+        if (bounds.outWidth <= 0 || bounds.outHeight <= 0) return null
+        var sample = 1
+        while (maxOf(bounds.outWidth, bounds.outHeight) / (sample * 2) >= OCR_MAX_SIDE) sample *= 2
+        val options = BitmapFactory.Options().apply { inSampleSize = sample }
+        return resolver.openInputStream(mediaUri)?.use { BitmapFactory.decodeStream(it, null, options) }
+    }
+
+    private companion object {
+        const val OCR_MAX_SIDE = 2048
+        const val BLANK_ROW_TOLERANCE = 24
+    }
 }
 
 fun hasPhotoAccess(context: Context): Boolean {

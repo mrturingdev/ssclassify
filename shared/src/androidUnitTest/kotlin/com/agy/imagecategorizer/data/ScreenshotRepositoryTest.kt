@@ -25,6 +25,10 @@ class ScreenshotRepositoryTest {
             analyzed += it.id
             onResult(it, ScreenshotAnalysis(text[it.id].orEmpty()))
         }
+        override suspend fun deleteScreenshots(ids: List<String>): List<String> {
+            assets = assets.filterNot { it.id in ids }
+            return ids
+        }
     }
 
     private fun asset(id: String, modified: Long = 1L, date: Long = 0L) =
@@ -211,6 +215,26 @@ class ScreenshotRepositoryTest {
     }
 
     @Test
+    fun categoryComesFromFilteredTextAndBothTextsAreKept() = runBlocking {
+        val raw = "WhatsApp WhatsApp message typing\nReceipt Subtotal Total Tax"
+        val source = object : ScreenshotSource {
+            override suspend fun ensureAccess() = true
+            override suspend fun listScreenshots() = listOf(asset("a"))
+            override suspend fun analyze(
+                assets: List<ScreenshotAsset>,
+                onResult: (ScreenshotAsset, ScreenshotAnalysis) -> Unit,
+            ) = assets.forEach { onResult(it, ScreenshotAnalysis(rawText = raw, filteredText = "Receipt Subtotal Total Tax")) }
+        }
+        val repo = repository(source)
+        repo.scan()
+        val record = repo.cached().single()
+        assertEquals(ImageCategory.Receipts, record.category, "edge chat banner must not win")
+        assertEquals("Receipt Subtotal Total Tax", record.ocrText)
+        assertEquals(raw, record.rawOcrText)
+        assertEquals(listOf("a"), repo.search("whatsapp").map { it.id }, "search still covers raw text")
+    }
+
+    @Test
     fun deniedAccessKeepsCacheAndReportsPermission() = runBlocking {
         val source = FakeSource(listOf(asset("a")), mapOf("a" to "invoice"))
         val repo = repository(source)
@@ -231,5 +255,20 @@ class ScreenshotRepositoryTest {
         repo.scan()
         val record = repo.cached().single()
         assertEquals("Total $50.00 Paid", record.ocrText)
+    }
+
+    @Test
+    fun deleteScreenshotsRemovesThemFromDatabaseAndCache() = runBlocking {
+        val source = FakeSource(
+            assets = listOf(asset("a", date = 2), asset("b", date = 1)),
+            text = mapOf("a" to "Total 10", "b" to "Receipt"),
+        )
+        val repo = repository(source)
+        repo.scan()
+        assertEquals(listOf("a", "b"), repo.cached().map { it.id })
+
+        val deleted = repo.deleteScreenshots(listOf("a"))
+        assertEquals(listOf("a"), deleted)
+        assertEquals(listOf("b"), repo.cached().map { it.id })
     }
 }

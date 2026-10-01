@@ -9,13 +9,18 @@ import com.google.mlkit.vision.text.latin.TextRecognizerOptions
 class OcrHelper {
     private val recognizer = TextRecognition.getClient(TextRecognizerOptions.DEFAULT_OPTIONS)
 
-    fun extractText(bitmap: Bitmap): String {
+    /** ML Kit text lines with boxes normalized to the bitmap; empty on failure. */
+    fun recognizeLines(bitmap: Bitmap): List<OcrLine> {
         return try {
-            val image = InputImage.fromBitmap(bitmap, 0)
-            val result = Tasks.await(recognizer.process(image))
-            result.text
+            val result = Tasks.await(recognizer.process(InputImage.fromBitmap(bitmap, 0)))
+            val width = bitmap.width.toFloat()
+            val height = bitmap.height.toFloat()
+            result.textBlocks.flatMap { it.lines }.mapNotNull { line ->
+                val box = line.boundingBox ?: return@mapNotNull null
+                OcrLine(line.text, box.left / width, box.top / height, box.right / width, box.bottom / height)
+            }
         } catch (e: Exception) {
-            ""
+            emptyList()
         }
     }
 

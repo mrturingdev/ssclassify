@@ -1,5 +1,6 @@
 package com.agy.imagecategorizer.ui
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -33,8 +34,10 @@ import androidx.compose.material.icons.rounded.ArrowDropDown
 import androidx.compose.material.icons.rounded.AutoAwesome
 import androidx.compose.material.icons.rounded.Check
 import androidx.compose.material.icons.rounded.ChatBubbleOutline
+import androidx.compose.material.icons.rounded.CleaningServices
 import androidx.compose.material.icons.rounded.Close
 import androidx.compose.material.icons.rounded.Code
+import androidx.compose.material.icons.rounded.Delete
 import androidx.compose.material.icons.rounded.Description
 import androidx.compose.material.icons.rounded.Download
 import androidx.compose.material.icons.rounded.Edit
@@ -44,6 +47,8 @@ import androidx.compose.material.icons.rounded.Fullscreen
 import androidx.compose.material.icons.rounded.LocalHospital
 import androidx.compose.material.icons.rounded.People
 import androidx.compose.material.icons.rounded.PhotoCamera
+import androidx.compose.material.icons.rounded.RadioButtonUnchecked
+import androidx.compose.material.icons.rounded.CheckCircle
 import androidx.compose.material.icons.rounded.Refresh
 import androidx.compose.material.icons.rounded.Restaurant
 import androidx.compose.material.icons.rounded.Screenshot
@@ -53,6 +58,7 @@ import androidx.compose.material.icons.rounded.ShoppingCart
 import androidx.compose.material.icons.rounded.Work
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CenterAlignedTopAppBar
@@ -117,6 +123,7 @@ fun HomeScreen(
     onQueryChange: (String) -> Unit,
     searchResults: List<ImageRecord>?,
     onCategoryChange: (id: String, category: ImageCategory?) -> Unit,
+    onDeleteScreenshots: (List<String>) -> Unit = {},
 ) {
     var selected by rememberSaveable { mutableStateOf(ALL_KEY) }
     var selectedSubCategory by rememberSaveable { mutableStateOf<String?>(null) }
@@ -150,6 +157,10 @@ fun HomeScreen(
             onBack = { activeDetailId = null },
             onOpenFullscreen = { fullscreenImageId = activeDetailImage.id },
             onCategoryChange = { onCategoryChange(activeDetailImage.id, it) },
+            onDelete = {
+                onDeleteScreenshots(listOf(activeDetailImage.id))
+                activeDetailId = null
+            },
             modifier = modifier,
         )
     } else {
@@ -233,6 +244,7 @@ fun HomeScreen(
                             onCategoryChange = onCategoryChange,
                             onOpenFullscreen = { fullscreenImageId = it },
                             onNavigateToDetails = { activeDetailId = it },
+                            onDeleteScreenshots = onDeleteScreenshots,
                         )
                     }
 
@@ -255,6 +267,10 @@ fun HomeScreen(
 }
 
 private const val ALL_KEY = "all"
+private const val CLEANUP_KEY = "cleanup"
+private const val CLEANUP_SUB_ALL = "all_cleanup"
+private const val CLEANUP_SUB_BLANK = "blank_screens"
+private const val CLEANUP_SUB_UNCAT = "uncategorized"
 
 @Composable
 private fun SearchField(query: String, onQueryChange: (String) -> Unit) {
@@ -370,124 +386,302 @@ private fun CategoryBrowser(
     onCategoryChange: (id: String, category: ImageCategory?) -> Unit,
     onOpenFullscreen: (id: String) -> Unit,
     onNavigateToDetails: (id: String) -> Unit,
+    onDeleteScreenshots: (List<String>) -> Unit,
 ) {
     // Track by id so the dialog shows the fresh record after a category change.
     var detailId by remember { mutableStateOf<String?>(null) }
     val grouped = images.groupBy { it.category }
     val counts = grouped.mapValues { it.value.size }
 
+    // Cleanup mode state
+    val isCleanupMode = selectedKey == CLEANUP_KEY
+    var cleanupSubFilter by remember(isCleanupMode) { mutableStateOf(CLEANUP_SUB_ALL) }
+    var selectedIds by remember(isCleanupMode) { mutableStateOf<Set<String>>(emptySet()) }
+    var showBulkDeleteConfirm by remember { mutableStateOf(false) }
+
     Column(Modifier.fillMaxSize()) {
         CategoryFilterRow(
             counts = counts,
+            images = images,
             selectedKey = selectedKey,
             onSelect = onSelect,
         )
 
-        val selectedBaseImages = if (selectedKey == ALL_KEY) {
-            images
-        } else {
-            grouped.entries.firstOrNull { it.key.name == selectedKey }?.value.orEmpty()
-        }
-
-        // Subcategory filter row
-        if (selectedKey != ALL_KEY && selectedBaseImages.isNotEmpty()) {
-            val subCategories = selectedBaseImages.mapNotNull { it.subCategory }.distinct().sorted()
-            if (subCategories.isNotEmpty()) {
-                LazyRow(
-                    contentPadding = PaddingValues(horizontal = 16.dp, vertical = 2.dp),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                ) {
-                    item {
-                        FilterChip(
-                            selected = selectedSubCategoryKey == null,
-                            onClick = { onSelectSubCategory(null) },
-                            label = { Text("All") },
-                            shape = RoundedCornerShape(16.dp),
-                        )
-                    }
-                    items(subCategories, key = { it }) { sub ->
-                        FilterChip(
-                            selected = selectedSubCategoryKey == sub,
-                            onClick = { onSelectSubCategory(sub) },
-                            label = { Text(sub) },
-                            shape = RoundedCornerShape(16.dp),
-                        )
-                    }
+        if (isCleanupMode) {
+            // Cleanup sub-filter chips
+            val cleanupImages = images.filter { it.isCleanUpCandidate }
+            LazyRow(
+                contentPadding = PaddingValues(horizontal = 16.dp, vertical = 4.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                item {
+                    FilterChip(
+                        selected = cleanupSubFilter == CLEANUP_SUB_ALL,
+                        onClick = { cleanupSubFilter = CLEANUP_SUB_ALL; selectedIds = emptySet() },
+                        label = { Text("All (${cleanupImages.size})") },
+                        shape = RoundedCornerShape(16.dp),
+                    )
+                }
+                item {
+                    val blankCount = cleanupImages.count { it.isBlankScreen }
+                    FilterChip(
+                        selected = cleanupSubFilter == CLEANUP_SUB_BLANK,
+                        onClick = { cleanupSubFilter = CLEANUP_SUB_BLANK; selectedIds = emptySet() },
+                        label = { Text("Blank Screens ($blankCount)") },
+                        leadingIcon = { Icon(Icons.Rounded.PhotoCamera, contentDescription = null, modifier = Modifier.size(14.dp)) },
+                        shape = RoundedCornerShape(16.dp),
+                    )
+                }
+                item {
+                    val uncatCount = cleanupImages.count { !it.isBlankScreen }
+                    FilterChip(
+                        selected = cleanupSubFilter == CLEANUP_SUB_UNCAT,
+                        onClick = { cleanupSubFilter = CLEANUP_SUB_UNCAT; selectedIds = emptySet() },
+                        label = { Text("Uncategorized ($uncatCount)") },
+                        leadingIcon = { Icon(Icons.Rounded.FolderOpen, contentDescription = null, modifier = Modifier.size(14.dp)) },
+                        shape = RoundedCornerShape(16.dp),
+                    )
                 }
             }
-        }
 
-        val visible = if (selectedSubCategoryKey != null) {
-            selectedBaseImages.filter { it.subCategory == selectedSubCategoryKey }
-        } else {
-            selectedBaseImages
-        }
+            val visible = when (cleanupSubFilter) {
+                CLEANUP_SUB_BLANK -> cleanupImages.filter { it.isBlankScreen }
+                CLEANUP_SUB_UNCAT -> cleanupImages.filter { !it.isBlankScreen }
+                else -> cleanupImages
+            }
 
-        if (visible.isEmpty()) {
-            Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                Column(
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.spacedBy(16.dp),
+            // Selection action bar
+            if (visible.isNotEmpty()) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .background(MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.15f))
+                        .padding(horizontal = 16.dp, vertical = 8.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
                 ) {
-                    Text(
-                        emptyMessage,
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        textAlign = TextAlign.Center,
-                        modifier = Modifier.padding(horizontal = 32.dp),
-                    )
-                    if (onRescan != null) {
-                        FilledTonalButton(
-                            onClick = onRescan,
-                            shape = RoundedCornerShape(16.dp),
+                    val allSelected = selectedIds.size == visible.size && visible.isNotEmpty()
+                    FilledTonalButton(
+                        onClick = {
+                            selectedIds = if (allSelected) emptySet() else visible.map { it.id }.toSet()
+                        },
+                        shape = RoundedCornerShape(12.dp),
+                        modifier = Modifier.height(36.dp),
+                    ) {
+                        Text(if (allSelected) "Deselect All" else "Select All", style = MaterialTheme.typography.labelMedium)
+                    }
+                    Spacer(Modifier.weight(1f))
+                    if (selectedIds.isNotEmpty()) {
+                        Button(
+                            onClick = { showBulkDeleteConfirm = true },
+                            shape = RoundedCornerShape(12.dp),
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = MaterialTheme.colorScheme.error,
+                            ),
+                            modifier = Modifier.height(36.dp),
                         ) {
-                            Text("Rescan")
+                            Icon(Icons.Rounded.Delete, contentDescription = null, modifier = Modifier.size(16.dp))
+                            Spacer(Modifier.width(4.dp))
+                            Text("Delete (${selectedIds.size})", style = MaterialTheme.typography.labelMedium)
                         }
                     }
                 }
             }
+
+            if (visible.isEmpty()) {
+                Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.spacedBy(16.dp),
+                    ) {
+                        Icon(
+                            Icons.Rounded.CleaningServices,
+                            contentDescription = null,
+                            modifier = Modifier.size(48.dp),
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f),
+                        )
+                        Text(
+                            "No items to clean up!",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            textAlign = TextAlign.Center,
+                        )
+                    }
+                }
+            } else {
+                val gridState = rememberLazyGridState()
+                LazyVerticalGrid(
+                    columns = GridCells.Adaptive(minSize = 110.dp),
+                    state = gridState,
+                    contentPadding = PaddingValues(start = 12.dp, end = 12.dp, top = 8.dp, bottom = 16.dp),
+                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                    verticalArrangement = Arrangement.spacedBy(6.dp),
+                    modifier = Modifier.fillMaxSize(),
+                ) {
+                    items(visible, key = { it.id }) { image ->
+                        val checked = image.id in selectedIds
+                        ImageCard(
+                            image = image,
+                            thumbnailLoader = thumbnailLoader,
+                            selectable = true,
+                            checked = checked,
+                            onClick = {
+                                selectedIds = if (checked) selectedIds - image.id else selectedIds + image.id
+                            },
+                        )
+                    }
+                }
+            }
+
+            // Bulk delete confirmation dialog
+            if (showBulkDeleteConfirm) {
+                AlertDialog(
+                    onDismissRequest = { showBulkDeleteConfirm = false },
+                    title = { Text("Delete ${selectedIds.size} Screenshot${if (selectedIds.size == 1) "" else "s"}?") },
+                    text = { Text("This will permanently delete the selected screenshot${if (selectedIds.size == 1) "" else "s"} from your device. This action cannot be undone.") },
+                    confirmButton = {
+                        Button(
+                            onClick = {
+                                showBulkDeleteConfirm = false
+                                onDeleteScreenshots(selectedIds.toList())
+                                selectedIds = emptySet()
+                            },
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = MaterialTheme.colorScheme.error,
+                            ),
+                            shape = RoundedCornerShape(12.dp),
+                        ) {
+                            Text("Delete Permanently")
+                        }
+                    },
+                    dismissButton = {
+                        FilledTonalButton(
+                            onClick = { showBulkDeleteConfirm = false },
+                            shape = RoundedCornerShape(12.dp),
+                        ) {
+                            Text("Cancel")
+                        }
+                    },
+                )
+            }
         } else {
-            val gridState = rememberLazyGridState()
-            LazyVerticalGrid(
-                columns = GridCells.Adaptive(minSize = 110.dp),
-                state = gridState,
-                contentPadding = PaddingValues(start = 12.dp, end = 12.dp, top = 8.dp, bottom = 16.dp),
-                horizontalArrangement = Arrangement.spacedBy(6.dp),
-                verticalArrangement = Arrangement.spacedBy(6.dp),
-                modifier = Modifier.fillMaxSize(),
-            ) {
-                items(visible, key = { it.id }) { image ->
-                    ImageCard(
-                        image = image,
-                        thumbnailLoader = thumbnailLoader,
-                        onClick = { detailId = image.id },
-                    )
+            // Normal (non-cleanup) browse mode
+            val selectedBaseImages = if (selectedKey == ALL_KEY) {
+                images
+            } else {
+                grouped.entries.firstOrNull { it.key.name == selectedKey }?.value.orEmpty()
+            }
+
+            // Subcategory filter row
+            if (selectedKey != ALL_KEY && selectedBaseImages.isNotEmpty()) {
+                val subCategories = selectedBaseImages.mapNotNull { it.subCategory }.distinct().sorted()
+                if (subCategories.isNotEmpty()) {
+                    LazyRow(
+                        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 2.dp),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    ) {
+                        item {
+                            FilterChip(
+                                selected = selectedSubCategoryKey == null,
+                                onClick = { onSelectSubCategory(null) },
+                                label = { Text("All") },
+                                shape = RoundedCornerShape(16.dp),
+                            )
+                        }
+                        items(subCategories, key = { it }) { sub ->
+                            FilterChip(
+                                selected = selectedSubCategoryKey == sub,
+                                onClick = { onSelectSubCategory(sub) },
+                                label = { Text(sub) },
+                                shape = RoundedCornerShape(16.dp),
+                            )
+                        }
+                    }
+                }
+            }
+
+            val visible = if (selectedSubCategoryKey != null) {
+                selectedBaseImages.filter { it.subCategory == selectedSubCategoryKey }
+            } else {
+                selectedBaseImages
+            }
+
+            if (visible.isEmpty()) {
+                Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.spacedBy(16.dp),
+                    ) {
+                        Text(
+                            emptyMessage,
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            textAlign = TextAlign.Center,
+                            modifier = Modifier.padding(horizontal = 32.dp),
+                        )
+                        if (onRescan != null) {
+                            FilledTonalButton(
+                                onClick = onRescan,
+                                shape = RoundedCornerShape(16.dp),
+                            ) {
+                                Text("Rescan")
+                            }
+                        }
+                    }
+                }
+            } else {
+                val gridState = rememberLazyGridState()
+                LazyVerticalGrid(
+                    columns = GridCells.Adaptive(minSize = 110.dp),
+                    state = gridState,
+                    contentPadding = PaddingValues(start = 12.dp, end = 12.dp, top = 8.dp, bottom = 16.dp),
+                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                    verticalArrangement = Arrangement.spacedBy(6.dp),
+                    modifier = Modifier.fillMaxSize(),
+                ) {
+                    items(visible, key = { it.id }) { image ->
+                        ImageCard(
+                            image = image,
+                            thumbnailLoader = thumbnailLoader,
+                            onClick = { detailId = image.id },
+                        )
+                    }
                 }
             }
         }
     }
 
-    images.firstOrNull { it.id == detailId }?.let { detailImage ->
-        ImageDetailDialog(
-            image = detailImage,
-            thumbnailLoader = thumbnailLoader,
-            onDismiss = { detailId = null },
-            onCategoryChange = { onCategoryChange(detailImage.id, it) },
-            onOpenFullscreen = { onOpenFullscreen(detailImage.id) },
-            onNavigateToDetails = {
-                detailId = null
-                onNavigateToDetails(detailImage.id)
-            },
-        )
+    // Detail dialog (only in non-cleanup browse mode)
+    if (!isCleanupMode) {
+        images.firstOrNull { it.id == detailId }?.let { detailImage ->
+            ImageDetailDialog(
+                image = detailImage,
+                thumbnailLoader = thumbnailLoader,
+                onDismiss = { detailId = null },
+                onCategoryChange = { onCategoryChange(detailImage.id, it) },
+                onOpenFullscreen = { onOpenFullscreen(detailImage.id) },
+                onNavigateToDetails = {
+                    detailId = null
+                    onNavigateToDetails(detailImage.id)
+                },
+                onDelete = {
+                    detailId = null
+                    onDeleteScreenshots(listOf(detailImage.id))
+                },
+            )
+        }
     }
 }
+
 
 @Composable
 private fun CategoryFilterRow(
     counts: Map<ImageCategory, Int>,
+    images: List<ImageRecord>,
     selectedKey: String,
     onSelect: (String) -> Unit,
 ) {
+    val cleanupCount = images.count { it.isCleanUpCandidate }
     LazyRow(
         contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
         horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -510,8 +704,18 @@ private fun CategoryFilterRow(
                 onClick = { onSelect(category.name) },
             )
         }
+        item {
+            CategoryChip(
+                label = "Clean Up",
+                icon = Icons.Rounded.CleaningServices,
+                count = cleanupCount,
+                selected = selectedKey == CLEANUP_KEY,
+                onClick = { onSelect(CLEANUP_KEY) },
+            )
+        }
     }
 }
+
 
 @Composable
 private fun CategoryChip(
@@ -542,6 +746,8 @@ private fun ImageCard(
     image: ImageRecord,
     thumbnailLoader: ThumbnailLoader,
     onClick: () -> Unit,
+    selectable: Boolean = false,
+    checked: Boolean = false,
 ) {
     var bitmap by remember(image.id) { mutableStateOf<ImageBitmap?>(null) }
     LaunchedEffect(image.id) {
@@ -551,6 +757,7 @@ private fun ImageCard(
         onClick = onClick,
         shape = RoundedCornerShape(10.dp),
         elevation = CardDefaults.cardElevation(defaultElevation = 0.5.dp, pressedElevation = 2.dp),
+        border = if (checked) BorderStroke(2.dp, MaterialTheme.colorScheme.primary) else null,
         modifier = Modifier
             .fillMaxWidth()
             .aspectRatio(1f),
@@ -575,7 +782,7 @@ private fun ImageCard(
             val hasSummary = summary.isNotBlank() && summary != "No text detected"
             val hasSubCategory = !image.subCategory.isNullOrEmpty()
 
-            if (hasSummary || hasSubCategory) {
+            if (!selectable && (hasSummary || hasSubCategory)) {
                 Box(
                     modifier = Modifier
                         .align(Alignment.BottomStart)
@@ -613,9 +820,33 @@ private fun ImageCard(
                     }
                 }
             }
+
+            // Checkbox overlay for selection mode
+            if (selectable) {
+                if (checked) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.25f)),
+                    )
+                }
+                Box(
+                    modifier = Modifier
+                        .align(Alignment.TopEnd)
+                        .padding(6.dp),
+                ) {
+                    Icon(
+                        imageVector = if (checked) Icons.Rounded.CheckCircle else Icons.Rounded.RadioButtonUnchecked,
+                        contentDescription = if (checked) "Selected" else "Not selected",
+                        modifier = Modifier.size(22.dp),
+                        tint = if (checked) MaterialTheme.colorScheme.primary else Color.White.copy(alpha = 0.85f),
+                    )
+                }
+            }
         }
     }
 }
+
 
 @Composable
 internal fun ImageDetailDialog(
@@ -625,10 +856,42 @@ internal fun ImageDetailDialog(
     onCategoryChange: (ImageCategory?) -> Unit,
     onOpenFullscreen: () -> Unit,
     onNavigateToDetails: () -> Unit,
+    onDelete: (() -> Unit)? = null,
 ) {
     var bitmap by remember(image.id) { mutableStateOf<ImageBitmap?>(null) }
+    var showDeleteConfirm by remember { mutableStateOf(false) }
     LaunchedEffect(image.id) {
         bitmap = thumbnailLoader.load(image.id, 720)
+    }
+
+    if (showDeleteConfirm) {
+        AlertDialog(
+            onDismissRequest = { showDeleteConfirm = false },
+            title = { Text("Delete Screenshot?") },
+            text = { Text("This will permanently delete this screenshot from your device. This action cannot be undone.") },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        showDeleteConfirm = false
+                        onDelete?.invoke()
+                    },
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = MaterialTheme.colorScheme.error,
+                    ),
+                    shape = RoundedCornerShape(12.dp),
+                ) {
+                    Text("Delete Permanently")
+                }
+            },
+            dismissButton = {
+                FilledTonalButton(
+                    onClick = { showDeleteConfirm = false },
+                    shape = RoundedCornerShape(12.dp),
+                ) {
+                    Text("Cancel")
+                }
+            },
+        )
     }
 
     AlertDialog(
@@ -651,11 +914,22 @@ internal fun ImageDetailDialog(
             }
         },
         dismissButton = {
-            Button(
-                onClick = onDismiss,
-                shape = RoundedCornerShape(16.dp),
-            ) {
-                Text("Done")
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                if (onDelete != null) {
+                    IconButton(onClick = { showDeleteConfirm = true }) {
+                        Icon(
+                            Icons.Rounded.Delete,
+                            contentDescription = "Delete screenshot",
+                            tint = MaterialTheme.colorScheme.error,
+                        )
+                    }
+                }
+                Button(
+                    onClick = onDismiss,
+                    shape = RoundedCornerShape(16.dp),
+                ) {
+                    Text("Done")
+                }
             }
         },
         text = {

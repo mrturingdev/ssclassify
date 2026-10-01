@@ -68,11 +68,12 @@ Versions are the source of truth in `gradle/libs.versions.toml`; this table was 
 | Build | Gradle + AGP | Gradle 9.0 wrapper, AGP 8.6.1, JDK 21, compileSdk/targetSdk 35, minSdk 24, iOS 15.0 |
 | Concurrency | Kotlinx Coroutines / Flow | Coroutines 1.10.2 |
 | Local DB | SQLDelight + SQLite (FTS4) | SQLDelight 2.4.0 (`screenshots.db`, `commonMain/sqldelight/.../Screenshot.sq`). Incremental scans. Full-text search uses **FTS4**, not FTS5: Android's framework SQLite has no FTS5 (confirmed on API 36), and FTS4 ships on both platforms without bundling SQLite |
-| OCR (Android) | ML Kit Text Recognition | ML Kit `text-recognition` 16.0.1 (Latin script only; Nepali needs `text-recognition-devanagari`) |
+| OCR (Android) | ML Kit Text Recognition | ML Kit `text-recognition` 16.0.1 on a near-full-resolution decode (was a 512 px thumbnail); Latin script only, Nepali needs `text-recognition-devanagari` |
 | OCR (iOS) | Apple Vision `VNRecognizeTextRequest` | Vision, accurate level (`iosMain/.../classify/OcrHelper.kt`) |
-| Image ML (Android) | Optional on-device model | TFLite Task Vision 0.4.4 + MobileNet v1 quant (`androidApp/src/main/assets`) for object labels on screenshots |
+| Semantic AI (Android) | On-device LLM / SLM | Google Play Services Android AICore (`com.google.ai.edge.aicore:0.0.1-exp01`) + Gemini Nano in `:aicore` module with automatic heuristic fallback (`RuleBasedOcrMeaningExtractor`) |
+| Image ML (Android) | Optional on-device model | TFLite Task Vision 0.4.4 + MobileNet v1 quant, only for text-light screenshots, on the OCR-located photo region. Measured: whole-screen input gives "web site"; photo crops give plausible but unreliable labels (waterfall -> valley/cliff 0.49, beach grass -> "ear" 0.57), so objects come from OCR text in practice. A newer model (e.g. ML Kit Image Labeling or EfficientNet-Lite) is the upgrade path |
 | Image ML (iOS) | - | **Not yet** (`TensorFlowClassifier` is an empty expect/actual stub) |
-| Classification | Hybrid rules + optional ML | Screenshots only. `ScreenshotCategorizer`: keyword rules over OCR text + file name -> content category (section 2.3, minus Meme). Android adds MobileNet labels / OCR keywords as a free-form `subCategory`. `ImageContentAnalyzer` (pixel heuristics) exists and is tested but is not wired in |
+| Classification & Meaning | Hybrid rules + AICore | Screenshots only. `ScreenshotCategorizer`: keyword rules over OCR text + file name -> content category. `OcrMeaningProvider` connects to `:aicore` to synthesize coherent human meaning, messages, and key highlights (Amounts, Dates, References, Actions). The object (`subCategory`) comes from text/AICore first, MobileNet second (`ObjectResolver`) |
 | Background work | WorkManager / BGProcessingTask | **Not yet** - foreground scan, auto-rescan via `ContentObserver` / `PHPhotoLibraryChangeObserver` |
 | DI | Koin or manual assembly | Manual (`remember { MediaScanner() }`, Android `Context` via `initAndroid`) |
 | Serialization | Kotlinx Serialization (JSON) | **Not yet** (not needed until persistence lands) |
@@ -86,27 +87,32 @@ See `architecture.md` for full details. High-level summary:
 - **Domain layer (commonMain):**
   - `Screenshot`, `ScreenshotCategory`, `ProcessingStatus`
   - `ScreenshotRepository`, `PhotoLibraryGateway`, `OcrEngine`, `ScreenshotClassifier`
+  - `OcrMeaningProvider`, `ExtractedOcrMeaning`
   - Use cases: `ProcessScreenshotUseCase`, `ObserveScreenshotsUseCase`, `SearchScreenshotsUseCase`
 - **Data layer (commonMain + platform):**
   - SQLDelight schema and queries
   - Repository implementations using platform photo/OCR/DB
+- **On-Device AI Engine (:aicore):**
+  - Android AICore / Gemini Nano generative foundation model
+  - Strict JSON prompt builder, resilient response parser, deterministic fallback
 - **Presentation layer (commonMain):**
   - Compose screens: Home, Search, Detail, Import/Scan, Settings
   - State holders / ViewModels exposing `StateFlow<UiState>`
 - **Platform implementations:**
-  - `androidMain`: MediaStore/Photo Picker, ML Kit, WorkManager, Keystore
+  - `androidMain`: MediaStore/Photo Picker, ML Kit, AICore bridge, WorkManager, Keystore
   - `iosMain`: Photos framework, Vision OCR, BackgroundTasks, Keychain
 
 ---
 
-### Current status (verified 2026-09-27)
+### Current status (verified 2026-09-29)
 
-- `:androidApp:assembleDebug` builds; `:shared:testDebugUnitTest` passes (28 tests: `ScreenshotCategorizerTest`, `ImageContentAnalyzerTest`, `CorrectionLearnerTest`, `ScreenshotRepositoryTest`). The 19 common tests also pass natively on the iOS simulator via `arch -arm64 ./gradlew -Dorg.gradle.java.home=<arm64 JDK> :shared:iosSimulatorArm64Test`.
+- `:androidApp:assembleDebug` builds; `:aicore:testDebugUnitTest` passes (13 tests) and `:shared:testDebugUnitTest` passes (30 tests: `ScreenshotCategorizerTest`, `ImageContentAnalyzerTest`, `CorrectionLearnerTest`, `ScreenshotRepositoryTest`, `OcrMeaningProviderTest`).
+- On-device semantic AI extraction is implemented in `:aicore` and wired to `:shared` via `OcrMeaningProvider`. Raw OCR text is interpreted by Gemini Nano (or the local rule fallback) into structured headlines, coherent message summaries, categories, and key entities.
 - The dev machine is an Apple M3, but the only installed JDK 21 is x86_64, so Gradle runs under Rosetta and Kotlin/Native treats the host as Intel (`iosSimulatorArm64Test` is skipped, `iosX64Test` fails with "Bad CPU type"). With `iosX64` gone, this x86_64 JDK can no longer run any iOS tests; use an arm64 JDK (Android Studio's JDK 25 works) as shown in the README. The iOS app builds, links and launches in the iOS 26.2 simulator with CMP 1.11.1.
-- Phase 1 (Android) is partially done: gallery scan, categorization, ML Kit OCR and grid UI with category and sub-category chips work. Persistence with incremental rescans, full-text search, a detail dialog and category correction are done. Phase 1 acceptance criteria are met.
-- Phase 2 (iOS) is partially done: PhotoKit scan filtered by the screenshot flag, Vision OCR, thumbnails and shared UI work. Missing: everything missing on Android.
+- Phase 1 (Android) is done: gallery scan, categorization, ML Kit OCR, on-device AICore semantic extraction, and grid UI with category and sub-category chips work. Persistence with incremental rescans, full-text search, a detail dialog, and category correction are done. Phase 1 acceptance criteria are met.
+- Phase 2 (iOS) is partially done: PhotoKit scan filtered by the screenshot flag, Vision OCR, thumbnails, and shared UI work.
 - Only screenshots are scanned (Android: name/path tokens such as `screenshot`, `captura`, `bildschirmfoto`; iOS: `PHAssetMediaSubtypePhotoScreenshot`). Other gallery images are ignored. Categories are the content categories from section 2.3 (Meme is omitted since text rules cannot detect it); no match -> Uncategorized.
-- Scans are incremental: OCR (and TFLite on Android) only runs for screenshots that are new or whose modified timestamp changed; deleted screenshots are dropped. Cached results show at launch while a background rescan catches up. Each result is saved as soon as it is analyzed, so an interrupted scan keeps its progress.
+- Scans are incremental: OCR, AICore meaning extraction (and TFLite on Android) only run for screenshots that are new or whose modified timestamp changed; deleted screenshots are dropped. Cached results show at launch while a background rescan catches up. Each result is saved as soon as it is analyzed, so an interrupted scan keeps its progress.
 
 ---
 
@@ -188,11 +194,12 @@ Acceptance criteria:
 ### Phase 4 - Advanced Features (optional, 4+ weeks)
 
 - Semantic search with on-device embeddings.
-- Action extraction:
-  - Detect URLs, phone numbers, flight numbers, coupon codes.
+- Action & Entity extraction:
+  - Detect URLs, phone numbers, flight numbers, coupon codes, and action items [done in `:aicore`].
+- Sensitive-content detector (OTP, cards, passwords) [done in `:aicore` via `isSensitive` flag].
+- Semantic meaning synthesis from noisy OCR [done via `:aicore` + `OcrMeaningProvider`].
 - Duplicate detection & clustering.
 - Expiry reminders for tickets, bookings, coupons.
-- Sensitive-content detector (OTP, cards, passwords).
 - Nepali-specific optimizations:
   - Better Devanagari OCR tuning.
   - Localized category names.

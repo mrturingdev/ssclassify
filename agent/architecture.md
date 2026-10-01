@@ -33,11 +33,15 @@ The shared KMP module owns UI state, business rules, use cases, domain models, r
 
 ```text
 image-categorizer/
+├── aicore/                         # Android library: Android AICore / Gemini Nano semantic extraction (Gradle :aicore)
+│   └── src/
+│       ├── androidMain/            # AICore client, prompts, JSON parser, fallback extractor
+│       └── androidUnitTest/        # Unit tests
 ├── shared/                         # KMP module: shared Compose UI + domain + data (Gradle :shared)
 │   └── src/
-│       ├── commonMain/             # UI, models, classifiers, expect declarations
-│       ├── androidMain/            # MediaStore, ML Kit OCR, TFLite actuals
-│       ├── iosMain/                # PhotoKit actuals, MainViewController, Shared.framework
+│       ├── commonMain/             # UI, models, classifiers, OcrMeaningProvider expect declaration
+│       ├── androidMain/            # MediaStore, ML Kit OCR, TFLite, OcrMeaningProvider actual -> :aicore
+│       ├── iosMain/                # PhotoKit actuals, Vision OCR, MainViewController, Shared.framework
 │       └── commonTest/             # Pure unit tests
 ├── androidApp/                     # Android launcher (Gradle :androidApp)
 │   └── src/
@@ -49,9 +53,9 @@ image-categorizer/
 
 `shared` holds all shared layers (there is no separate `composeApp` module). Split domain, data, and feature modules only when build time or team size makes it valuable.
 
-### Current implementation (verified 2026-09-27)
+### Current implementation (verified 2026-09-29)
 
-The code does not yet follow sections 5-12. It is a flat, single-pass pipeline with no persistence:
+The code features an on-device OCR and semantic inference pipeline backed by SQLite persistence:
 
 ```text
 App (commonMain/App.kt, manual wiring via remember { })
@@ -60,11 +64,14 @@ App (commonMain/App.kt, manual wiring via remember { })
         -> MediaScanner.listScreenshots()  metadata only; Android: name/path tokens | iOS: screenshot subtype flag
         -> diff against stored (id, modified_millis): delete missing rows, pick new/changed
         -> MediaScanner.analyze(pending)   OCR: ML Kit (Android) | Vision (iOS)
-                                           [Android] TFLite labels -> sub_category / description
-        -> upsert each row as it completes
+                                           [Android/KMP] OcrMeaningProvider -> :aicore (Gemini Nano via Android AICore)
+                                                         Extracts proper meaning, synthesized message, entities
+                                                         Falls back to fast rule-based engine if AICore unsupported/downloading
+                                           [Android] TFLite labels -> sub_category fallback
+        -> upsert each row as it completes (storing ocr_text, description, sub_category)
         -> load rows; category = ScreenshotCategorizer.categorize(ocr_text, name) on read
     -> ScanOutcome.Success(List<ImageRecord>) held in Compose state
-    -> HomeScreen                    category chips, sub-category chips, lazy grid
+    -> HomeScreen                    category chips, sub-category chips, lazy grid with AI meaning digests
 MediaScanner.watchChanges()          ContentObserver | PHPhotoLibraryChangeObserver -> rescan
 ThumbnailLoader                      expect/actual thumbnail decode
 ```
@@ -73,6 +80,8 @@ ThumbnailLoader                      expect/actual thumbnail decode
 |---|---|
 | `Screenshot`, `ScreenshotCategory`, `ProcessingStatus` | `ImageRecord`, `ImageCategory` (`model/Models.kt`) |
 | `PhotoLibraryGateway` + `OcrEngine` + `ScreenshotClassifier` | `MediaScanner` does all three on Android (`MediaScanner.android.kt`) |
+| `OcrMeaningProvider` | `expect`/`actual` in `shared`; Android delegates to `:aicore`, iOS runs local heuristics |
+| Semantic Meaning Engine | `:aicore` module (`com.google.ai.edge.aicore:aicore:0.0.1-exp01` + fallback) |
 | `ScreenshotRepository` + SQLDelight + FTS | `ScreenshotRepository` + SQLDelight over a `ScreenshotSource` interface; FTS4 search via `search()` |
 | ViewModel + `StateFlow<UiState>` | `remember { mutableStateOf }` in `App` |
 | Koin modules | manual construction, `AndroidApp.context` set by `initAndroid` |
@@ -372,10 +381,24 @@ Use interfaces for native capabilities. Avoid leaking Android `Uri`, `Context`, 
 |---|---|---|---|
 | Photo access | `PhotoLibraryGateway` | MediaStore / Photo Picker | Photos framework |
 | OCR | `OcrEngine` | ML Kit | Apple Vision |
+| Semantic Meaning | `OcrMeaningProvider` | `:aicore` (Android AICore / Gemini Nano) | Local heuristic summarizer |
 | Background processing | `ProcessingScheduler` | WorkManager | BackgroundTasks |
 | Secure key storage | `SecureKeyProvider` | Android Keystore | Keychain |
 | Permissions | `PermissionGateway` | Runtime permissions | Photos authorization |
 | Image bytes | `ImageLoader` | ContentResolver | PHImageManager |
+
+---
+
+## 11.5. On-Device Semantic Extraction with Android AICore
+
+The `:aicore` Android module (`com.agy.imagecategorizer.aicore`) provides on-device generative semantic intelligence using Google Play Services Android AICore and Gemini Nano.
+
+### Architecture:
+- **`AiCoreClient`**: Abstraction wrapping `com.google.ai.edge.aicore.GenerativeModel`. Manages lifecycle, preparation, streaming, and maps `GenerativeAIException.ErrorCode` (busy, updates, storage limits) to observable `AiCoreStatus`.
+- **`OcrPromptBuilder`**: Strips mobile status bar noise (clocks, battery, radios) and crafts structured prompts requesting strict JSON outputs within Gemini Nano's context window.
+- **`OcrMeaningParser`**: Parses LLM markdown fences and raw JSON into strongly-typed `OcrMeaningResult` (headline, message, category, entities, action items, sensitivity flag).
+- **`RuleBasedOcrMeaningExtractor`**: High-performance local deterministic fallback engine used when AICore is unsupported (API < 31, non-Pixel/Galaxy flagship), downloading, or busy.
+- **`OcrMeaningProvider` (KMP Bridge)**: An `expect`/`actual` bridge in `:shared` that connects `MediaScanner` to `:aicore` on Android, populating `ImageRecord.description` and `subCategory` with synthesized AI summaries.
 
 ---
 
@@ -404,6 +427,7 @@ interface ProcessingScheduler {
 - Exclude sensitive local app data from device backups unless the user opts in.
 - Never send screenshot content to a network service without explicit, per-feature consent.
 - Redact OCR text from production logs and crash reports.
+- On-device Gemini Nano inference is 100% offline and private via Android AICore system service.
 
 ---
 
@@ -414,10 +438,12 @@ interface ProcessingScheduler {
 - Unit-test classifiers, use cases, mappers, search behavior, and state holders in `commonTest`.
 - Test repository behavior against a temporary SQLDelight database.
 - Test idempotency: importing the same `assetId` twice must not create duplicates.
+- Unit-test `OcrMeaningProvider` contract in `commonTest`.
 
-### Platform tests
+### Platform & AICore tests
 
 - Android: test MediaStore query behavior, permission outcomes, and WorkManager jobs.
+- `:aicore`: test prompt formatting, JSON parser resiliency, rule-based fallback, and mock client orchestration in `androidUnitTest`.
 - iOS: test Photos authorization behavior, Vision OCR adapter mapping, and background task registration.
 
 ### UI tests
@@ -429,25 +455,31 @@ interface ProcessingScheduler {
 
 ## 15. Dependency Recommendations
 
-Accessor names match `gradle/libs.versions.toml`. Entries marked `// to add` are not in the catalog yet.
+Accessor names match `gradle/libs.versions.toml`.
 
 ```kotlin
+// aicore/build.gradle.kts
+androidMain {
+    implementation(libs.google.ai.edge.aicore)
+    implementation(libs.kotlinx.coroutines.core)
+    implementation(libs.kotlinx.coroutines.android)
+}
+
+// shared/build.gradle.kts
 commonMain {
     implementation(libs.compose.runtime)
     implementation(libs.compose.foundation)
     implementation(libs.compose.material3)
     implementation(libs.compose.ui)
     implementation(libs.kotlinx.coroutines.core)
-    implementation(libs.kotlinx.serialization.json)          // to add
     implementation(libs.sqldelight.runtime)
-    implementation(libs.koin.core)                           // to add (optional)
 }
 
 androidMain {
+    implementation(project(":aicore"))
     implementation(libs.mlkit.text.recognition)
     implementation(libs.tensorflow.lite.task.vision)
     implementation(libs.sqldelight.android.driver)
-    implementation(libs.androidx.work.runtime.ktx)           // to add
 }
 ```
 
@@ -457,14 +489,14 @@ iOS dependencies for Photos, Vision, BackgroundTasks, and Keychain are available
 
 ## 16. Build Order
 
-Status as of 2026-09-27 in brackets.
+Status as of 2026-09-29 in brackets.
 
 1. Create Compose Multiplatform project and source-set layout. [done]
 2. Add shared domain models, repository interfaces, and SQLDelight schema. [done]
-3. Implement screenshot list/search UI with fake data. [list UI done, backed by real scan; no search]
+3. Implement screenshot list/search UI with real scan and SQLite persistence. [done]
 4. Implement Android photo access, ML Kit OCR, and repository wiring. [done]
-5. Add Android processing pipeline and WorkManager.
+5. Implement on-device semantic meaning extraction via `:aicore` module (Gemini Nano) with multiplatform bridge in `:shared`. [done]
 6. Implement iOS Photos access, Vision OCR, and repository wiring. [done, not run on a device yet]
 7. Add background scheduling and robust retry/checkpoint handling per platform.
 8. Add category correction, full-text search, encryption, and automated tests. [correction, FTS4 search and tests done; no encryption]
-9. Add optional on-device semantic-search module after the MVP is stable.
+9. Add optional on-device semantic-search embeddings after the MVP is stable.

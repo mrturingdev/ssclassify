@@ -2,10 +2,7 @@ package com.agy.imagecategorizer.classify
 
 object ScreenshotContentSummarizer {
 
-    private val statusNoiseRegex = Regex(
-        "^([0-2]?[0-9]:[0-5][0-9](\\s*[ap]m)?|\\d{1,3}%|lte|5g|4g|3g|wifi|volte|battery|am|pm)$",
-        RegexOption.IGNORE_CASE,
-    )
+    private val statusNoiseRegex = OcrTextProcessor.statusNoise
 
     private val tokenSplitRegex = Regex("[\\s|•·\\-]+")
 

@@ -11,7 +11,11 @@ CREATE TABLE screenshot (
     modified_millis INTEGER NOT NULL,
     ocr_text TEXT NOT NULL,
     sub_category TEXT,
-    description TEXT
+    description TEXT,
+    -- Central-90%, reading-order, cleaned OCR text; NULL for rows analyzed before v4.
+    filtered_text TEXT,
+    -- ObjectSource name that produced sub_category (Ocr / TensorFlowLite).
+    object_source TEXT
 );
 
 CREATE INDEX screenshot_date ON screenshot(date_millis DESC);

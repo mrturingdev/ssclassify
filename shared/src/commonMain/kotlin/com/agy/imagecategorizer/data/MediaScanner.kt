@@ -1,5 +1,6 @@
 package com.agy.imagecategorizer.data
 
+import com.agy.imagecategorizer.classify.ObjectSource
 import com.agy.imagecategorizer.model.ImageRecord
 import kotlinx.coroutines.flow.Flow
 
@@ -22,8 +23,13 @@ data class ScreenshotAsset(
 
 /** Result of the expensive on-device pass (OCR, plus image labels on Android). */
 data class ScreenshotAnalysis(
-    val ocrText: String,
+    /** Everything OCR read from the whole image, as the engine returned it. */
+    val rawText: String,
+    /** Central 90%, reading order, meaningless tokens removed; drives the category. */
+    val filteredText: String = rawText,
+    /** The main object, named from the text or, for image-heavy screenshots, by TensorFlow Lite. */
     val subCategory: String? = null,
+    val objectSource: ObjectSource? = null,
     val description: String? = null,
 )
 
@@ -37,6 +43,9 @@ interface ScreenshotSource {
 
     /** Analyzes [assets] one by one, reporting each as soon as it is done. Blocking. */
     suspend fun analyze(assets: List<ScreenshotAsset>, onResult: (ScreenshotAsset, ScreenshotAnalysis) -> Unit)
+
+    /** Permanently deletes media assets by their IDs. Returns the list of successfully deleted IDs. */
+    suspend fun deleteScreenshots(ids: List<String>): List<String> = emptyList()
 }
 
 /**
@@ -45,4 +54,5 @@ interface ScreenshotSource {
  */
 expect class MediaScanner() : ScreenshotSource {
     fun watchChanges(): Flow<Unit>
+    override suspend fun deleteScreenshots(ids: List<String>): List<String>
 }

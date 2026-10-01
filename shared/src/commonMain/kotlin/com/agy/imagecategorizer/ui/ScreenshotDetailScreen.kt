@@ -23,11 +23,16 @@ import androidx.compose.material.icons.automirrored.rounded.ArrowBack
 import androidx.compose.material.icons.rounded.AspectRatio
 import androidx.compose.material.icons.rounded.AutoAwesome
 import androidx.compose.material.icons.rounded.CalendarToday
+import androidx.compose.material.icons.rounded.Category
 import androidx.compose.material.icons.rounded.Check
 import androidx.compose.material.icons.rounded.ContentCopy
+import androidx.compose.material.icons.rounded.Delete
 import androidx.compose.material.icons.rounded.Description
 import androidx.compose.material.icons.rounded.Folder
 import androidx.compose.material.icons.rounded.Fullscreen
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
@@ -63,6 +68,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.agy.imagecategorizer.classify.ObjectSource
 import com.agy.imagecategorizer.classify.ScreenshotContentSummarizer
 import com.agy.imagecategorizer.data.ThumbnailLoader
 import com.agy.imagecategorizer.model.CategorySource
@@ -85,9 +91,11 @@ fun ScreenshotDetailScreen(
     onBack: () -> Unit,
     onOpenFullscreen: () -> Unit,
     onCategoryChange: (ImageCategory?) -> Unit,
+    onDelete: () -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
     val snackbarHostState = remember { SnackbarHostState() }
+    var showDeleteConfirm by remember { mutableStateOf(false) }
 
     Scaffold(
         modifier = modifier,
@@ -128,6 +136,13 @@ fun ScreenshotDetailScreen(
                             contentDescription = "Open Fullscreen",
                         )
                     }
+                    IconButton(onClick = { showDeleteConfirm = true }) {
+                        Icon(
+                            Icons.Rounded.Delete,
+                            contentDescription = "Delete Screenshot",
+                            tint = MaterialTheme.colorScheme.error,
+                        )
+                    }
                 },
             )
         },
@@ -164,16 +179,71 @@ fun ScreenshotDetailScreen(
                 HighlightsCard(highlights = highlights)
             }
 
-            // 5. Complete OCR Text Card
+            // 5. OCR text: filtered (what categorization reads) and raw (everything OCR saw)
             FullOcrTextCard(
+                title = "Detected Text",
                 ocrText = image.ocrText,
                 onShowSnackbar = { message ->
                     snackbarHostState.showSnackbar(message)
                 },
             )
+            if (image.rawOcrText.isNotBlank()) {
+                FullOcrTextCard(
+                    title = "Raw OCR Text",
+                    ocrText = image.rawOcrText,
+                    onShowSnackbar = { message ->
+                        snackbarHostState.showSnackbar(message)
+                    },
+                )
+            }
+
+            Spacer(Modifier.height(8.dp))
+
+            Button(
+                onClick = { showDeleteConfirm = true },
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = MaterialTheme.colorScheme.errorContainer,
+                    contentColor = MaterialTheme.colorScheme.onErrorContainer,
+                ),
+                shape = RoundedCornerShape(12.dp),
+                modifier = Modifier.fillMaxWidth().height(48.dp),
+            ) {
+                Icon(Icons.Rounded.Delete, contentDescription = null, modifier = Modifier.size(18.dp))
+                Spacer(Modifier.width(8.dp))
+                Text("Permanently Delete Screenshot")
+            }
 
             Spacer(Modifier.height(16.dp))
         }
+    }
+
+    if (showDeleteConfirm) {
+        AlertDialog(
+            onDismissRequest = { showDeleteConfirm = false },
+            title = { Text("Permanently Delete Screenshot?") },
+            text = {
+                Text("This screenshot will be permanently deleted from your device's photo library. This action cannot be undone.")
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        showDeleteConfirm = false
+                        onDelete()
+                    },
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = MaterialTheme.colorScheme.error,
+                        contentColor = MaterialTheme.colorScheme.onError,
+                    ),
+                ) {
+                    Text("Delete Permanently")
+                }
+            },
+            dismissButton = {
+                FilledTonalButton(onClick = { showDeleteConfirm = false }) {
+                    Text("Cancel")
+                }
+            },
+        )
     }
 }
 
@@ -319,6 +389,19 @@ private fun MetadataCard(image: ImageRecord) {
                 color = MaterialTheme.colorScheme.onSurface,
             )
 
+            if (!image.subCategory.isNullOrBlank()) {
+                MetadataRow(
+                    icon = Icons.Rounded.Category,
+                    label = "Object",
+                    value = when (image.objectSource) {
+                        ObjectSource.Ocr -> "${image.subCategory} (from text)"
+                        ObjectSource.TensorFlowLite -> "${image.subCategory} (TensorFlow Lite)"
+                        null -> image.subCategory
+                    },
+                )
+                HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f))
+            }
+
             MetadataRow(
                 icon = Icons.Rounded.AspectRatio,
                 label = "Dimensions",
@@ -456,6 +539,7 @@ private fun HighlightsCard(highlights: List<Pair<String, String>>) {
 
 @Composable
 private fun FullOcrTextCard(
+    title: String,
     ocrText: String,
     onShowSnackbar: suspend (String) -> Unit,
 ) {
@@ -501,7 +585,7 @@ private fun FullOcrTextCard(
                         tint = MaterialTheme.colorScheme.primary,
                     )
                     Text(
-                        text = "Detected Text",
+                        text = title,
                         style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.SemiBold),
                         color = MaterialTheme.colorScheme.onSurface,
                     )

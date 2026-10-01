@@ -1,0 +1,7 @@
+-- v3 -> v4: filtered OCR text and the source of the detected object.
+ALTER TABLE screenshot ADD COLUMN filtered_text TEXT;
+ALTER TABLE screenshot ADD COLUMN object_source TEXT;
+
+-- Existing rows only have unpositioned text; mark them changed so the next
+-- incremental scan re-runs OCR with line geometry.
+UPDATE screenshot SET modified_millis = -1;

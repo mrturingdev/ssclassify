@@ -122,6 +122,12 @@ fun App(isPermissionGranted: Boolean = true) {
                     outcome = ScanOutcome.Success(repository.cached())
                 }
             },
+            onDeleteScreenshots = { ids ->
+                scope.launch {
+                    repository.deleteScreenshots(ids)
+                    outcome = ScanOutcome.Success(repository.cached())
+                }
+            },
         )
     }
 }

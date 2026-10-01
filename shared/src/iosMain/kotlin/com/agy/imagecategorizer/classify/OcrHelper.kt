@@ -2,6 +2,7 @@
 
 package com.agy.imagecategorizer.classify
 
+import kotlinx.cinterop.useContents
 import platform.CoreGraphics.CGSizeMake
 import platform.Photos.PHAsset
 import platform.Photos.PHImageContentModeAspectFit
@@ -26,7 +27,8 @@ class OcrHelper {
         networkAccessAllowed = false
     }
 
-    fun extractText(asset: PHAsset, maxDimension: Double = 1600.0): String {
+    /** Vision text lines with boxes flipped to the shared top-left normalized space. */
+    fun recognizeLines(asset: PHAsset, maxDimension: Double = 1600.0): List<OcrLine> {
         var image: UIImage? = null
         manager.requestImageForAsset(
             asset,
@@ -34,17 +36,30 @@ class OcrHelper {
             PHImageContentModeAspectFit,
             options,
         ) { result, _ -> image = result }
-        val cgImage = image?.CGImage ?: return ""
+        val cgImage = image?.CGImage ?: return emptyList()
 
         val request = VNRecognizeTextRequest().apply {
             recognitionLevel = VNRequestTextRecognitionLevelAccurate
             usesLanguageCorrection = true
         }
         val handler = VNImageRequestHandler(cgImage, emptyMap<Any?, Any?>())
-        if (!handler.performRequests(listOf(request), null)) return ""
+        if (!handler.performRequests(listOf(request), null)) return emptyList()
 
-        return request.results.orEmpty()
-            .mapNotNull { (it as? VNRecognizedTextObservation)?.topCandidates(1u)?.firstOrNull() as? VNRecognizedText }
-            .joinToString("\n") { it.string }
+        return request.results.orEmpty().mapNotNull { result ->
+            val observation = result as? VNRecognizedTextObservation ?: return@mapNotNull null
+            val text = (observation.topCandidates(1u).firstOrNull() as? VNRecognizedText)?.string
+                ?: return@mapNotNull null
+            observation.boundingBox.useContents {
+                // Vision: normalized, origin bottom-left.
+                val top = 1.0 - (origin.y + size.height)
+                OcrLine(
+                    text = text,
+                    left = origin.x.toFloat(),
+                    top = top.toFloat(),
+                    right = (origin.x + size.width).toFloat(),
+                    bottom = (top + size.height).toFloat(),
+                )
+            }
+        }
     }
 }

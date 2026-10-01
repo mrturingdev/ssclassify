@@ -1,6 +1,10 @@
 package com.agy.imagecategorizer.data
 
+import com.agy.imagecategorizer.classify.ObjectResolver
+import com.agy.imagecategorizer.classify.ObjectSource
 import com.agy.imagecategorizer.classify.OcrHelper
+import com.agy.imagecategorizer.classify.OcrMeaningProvider
+import com.agy.imagecategorizer.classify.OcrTextProcessor
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.callbackFlow
@@ -41,6 +45,29 @@ actual class MediaScanner actual constructor() : ScreenshotSource {
         return isAuthorized(status)
     }
 
+    actual override suspend fun deleteScreenshots(ids: List<String>): List<String> =
+        suspendCancellableCoroutine { cont ->
+            val library = PHPhotoLibrary.sharedPhotoLibrary()
+            val fetchResult = PHAsset.fetchAssetsWithLocalIdentifiers(ids, null)
+            val assetsToDelete = mutableListOf<PHAsset>()
+            for (i in 0 until fetchResult.count.toInt()) {
+                (fetchResult.objectAtIndex(i.toULong()) as? PHAsset)?.let { assetsToDelete += it }
+            }
+            if (assetsToDelete.isEmpty()) {
+                cont.resume(emptyList())
+                return@suspendCancellableCoroutine
+            }
+            library.performChanges({
+                platform.Photos.PHAssetChangeRequest.deleteAssets(fetchResult)
+            }) { success, _ ->
+                if (success) {
+                    cont.resume(ids)
+                } else {
+                    cont.resume(emptyList())
+                }
+            }
+        }
+
     private suspend fun requestAccess(): Long =
         suspendCancellableCoroutine { cont ->
             PHPhotoLibrary.requestAuthorizationForAccessLevel(PHAccessLevelReadWrite) { status ->
@@ -80,10 +107,24 @@ actual class MediaScanner actual constructor() : ScreenshotSource {
     ) {
         if (assets.isEmpty()) return
         val ocr = OcrHelper()
+        val meaningProvider = OcrMeaningProvider()
         for (item in assets) {
             val asset = PHAsset.fetchAssetsWithLocalIdentifiers(listOf(item.id), null)
                 .firstObject() as? PHAsset ?: continue
-            onResult(item, ScreenshotAnalysis(ocrText = ocr.extractText(asset)))
+            // No image classifier on iOS yet: the object can only come from the text.
+            val text = OcrTextProcessor.process(ocr.recognizeLines(asset))
+            val detected = ObjectResolver.fromText(text.filtered)
+            val meaning = meaningProvider.extractMeaning(text.raw, text.filtered)
+            onResult(
+                item,
+                ScreenshotAnalysis(
+                    rawText = text.raw,
+                    filteredText = text.filtered,
+                    subCategory = detected?.label ?: meaning.subCategory,
+                    objectSource = detected?.source ?: if (meaning.subCategory != null) ObjectSource.Ocr else null,
+                    description = meaning.message.takeIf { it.isNotBlank() && it != "No text detected" },
+                ),
+            )
         }
     }
 
