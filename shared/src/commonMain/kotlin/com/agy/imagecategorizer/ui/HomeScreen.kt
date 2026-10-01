@@ -127,6 +127,9 @@ fun HomeScreen(
     onCategoryChange: (id: String, category: ImageCategory?) -> Unit,
     onDeleteScreenshots: (List<String>) -> Unit = {},
     onOpenSettings: () -> Unit = {},
+    /** A screenshot to open in the detail page, e.g. from a widget tap; null when none. */
+    openDetailId: String? = null,
+    onDetailOpened: () -> Unit = {},
 ) {
     var selected by rememberSaveable { mutableStateOf(ALL_KEY) }
     var selectedSubCategory by rememberSaveable { mutableStateOf<String?>(null) }
@@ -147,6 +150,16 @@ fun HomeScreen(
 
     val fullscreenImage = currentImages.firstOrNull { it.id == fullscreenImageId }
         ?: (outcome as? ScanOutcome.Success)?.images?.firstOrNull { it.id == fullscreenImageId }
+
+    // Wait for the library to load, then open it; a deleted screenshot just lands on the grid.
+    LaunchedEffect(openDetailId, outcome) {
+        if (openDetailId == null || outcome !is ScanOutcome.Success) return@LaunchedEffect
+        if (outcome.images.any { it.id == openDetailId }) {
+            fullscreenImageId = null
+            activeDetailId = openDetailId
+        }
+        onDetailOpened()
+    }
 
     // Decided here, not inside the effect: the effect would read activeDetailId live but
     // activeDetailImage from an older frame, and close a page another effect just opened.

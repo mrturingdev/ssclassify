@@ -1,9 +1,7 @@
 package com.agy.imagecategorizer.data
 
-import android.appwidget.AppWidgetManager
 import android.content.ContentUris
 import android.content.Context
-import android.content.Intent
 import android.database.ContentObserver
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
@@ -152,8 +150,7 @@ actual class MediaScanner actual constructor() : ScreenshotSource {
         assets: List<ScreenshotAsset>,
         onResult: (ScreenshotAsset, ScreenshotAnalysis) -> Unit,
     ) {
-        // Runs at the end of every scan, after sync() has written or dropped rows.
-        if (assets.isEmpty()) return refreshWidgets()
+        if (assets.isEmpty()) return
         val context = AndroidApp.context
         val tfHelper = TensorFlowVisionHelper(context)
         val ocrHelper = OcrHelper()
@@ -165,14 +162,7 @@ actual class MediaScanner actual constructor() : ScreenshotSource {
         } finally {
             tfHelper.close()
             ocrHelper.close()
-            refreshWidgets()
         }
-    }
-
-    /** Asks this app's home-screen widgets to re-read the cache; the receiver lives in :androidApp. */
-    private fun refreshWidgets() {
-        val context = AndroidApp.context
-        context.sendBroadcast(Intent(AppWidgetManager.ACTION_APPWIDGET_UPDATE).setPackage(context.packageName))
     }
 
     /**

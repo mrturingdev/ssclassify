@@ -30,6 +30,8 @@ import com.agy.imagecategorizer.settings.loadThemeMode
 import com.agy.imagecategorizer.settings.saveThemeMode
 import com.agy.imagecategorizer.ui.HomeScreen
 import com.agy.imagecategorizer.ui.SettingsScreen
+import com.agy.imagecategorizer.widget.DeepLinks
+import com.agy.imagecategorizer.widget.publishWidgetSnapshot
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
@@ -136,7 +138,16 @@ fun App(isPermissionGranted: Boolean = true, pinWidget: (() -> Unit)? = null) {
             searchResults = repository.search(query)
         }
 
+        // Widgets read the same analyzed library: refresh them whenever it changes.
+        LaunchedEffect(outcome) {
+            (outcome as? ScanOutcome.Success)?.let { publishWidgetSnapshot(it.images) }
+        }
+
         var showSettings by rememberSaveable { mutableStateOf(false) }
+        val deepLinkId = DeepLinks.pendingScreenshotId
+        LaunchedEffect(deepLinkId) {
+            if (deepLinkId != null) showSettings = false
+        }
         // Keeps the home screen's saved state (category, scroll) while Settings is open.
         val screens = rememberSaveableStateHolder()
         if (showSettings) {
@@ -159,6 +170,8 @@ fun App(isPermissionGranted: Boolean = true, pinWidget: (() -> Unit)? = null) {
                 HomeScreen(
                     modifier = Modifier.fillMaxSize(),
                     onOpenSettings = { showSettings = true },
+                    openDetailId = deepLinkId,
+                    onDetailOpened = { DeepLinks.pendingScreenshotId = null },
                     scanning = scanning,
                     outcome = outcome,
                     scanner = scanner,
