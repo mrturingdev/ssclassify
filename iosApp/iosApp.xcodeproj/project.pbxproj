@@ -9,7 +9,34 @@
 /* Begin PBXBuildFile section */
 		AB00000000000000000000A1 /* iOSApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = AB00000000000000000000B1 /* iOSApp.swift */; };
 		AB00000000000000000000A2 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AB00000000000000000000B2 /* ContentView.swift */; };
+		AC00000000000000000000A1 /* RecentScreenshotsWidget.swift in Sources */ = {isa = PBXBuildFile; fileRef = AC00000000000000000000B1 /* RecentScreenshotsWidget.swift */; };
+		AC00000000000000000000A2 /* ScreenshotLibrary.swift in Sources */ = {isa = PBXBuildFile; fileRef = AC00000000000000000000B2 /* ScreenshotLibrary.swift */; };
+		AC00000000000000000000A3 /* RecentScreenshotsWidget.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = AC00000000000000000000B5 /* RecentScreenshotsWidget.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 /* End PBXBuildFile section */
+
+/* Begin PBXContainerItemProxy section */
+		AC00000000000000000000E9 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = AB00000000000000000000E0 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = AC00000000000000000000E1;
+			remoteInfo = RecentScreenshotsWidget;
+		};
+/* End PBXContainerItemProxy section */
+
+/* Begin PBXCopyFilesBuildPhase section */
+		AC00000000000000000000E5 /* Embed Foundation Extensions */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "";
+			dstSubfolderSpec = 13;
+			files = (
+				AC00000000000000000000A3 /* RecentScreenshotsWidget.appex in Embed Foundation Extensions */,
+			);
+			name = "Embed Foundation Extensions";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
 		AB00000000000000000000B1 /* iOSApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = iOSApp.swift; sourceTree = "<group>"; };
@@ -18,10 +45,22 @@
 		AB00000000000000000000B4 /* Config.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Config.xcconfig; sourceTree = "<group>"; };
 		AB00000000000000000000B5 /* Project.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Project.xcconfig; sourceTree = "<group>"; };
 		AB00000000000000000000B6 /* ImageCategorizer.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = ImageCategorizer.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		AC00000000000000000000B1 /* RecentScreenshotsWidget.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RecentScreenshotsWidget.swift; sourceTree = "<group>"; };
+		AC00000000000000000000B2 /* ScreenshotLibrary.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScreenshotLibrary.swift; sourceTree = "<group>"; };
+		AC00000000000000000000B3 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
+		AC00000000000000000000B4 /* RecentScreenshotsWidget.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = RecentScreenshotsWidget.entitlements; sourceTree = "<group>"; };
+		AC00000000000000000000B5 /* RecentScreenshotsWidget.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = RecentScreenshotsWidget.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
 		AB00000000000000000000C1 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		AC00000000000000000000C1 /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -36,6 +75,7 @@
 			children = (
 				AB00000000000000000000D2 /* Configuration */,
 				AB00000000000000000000D3 /* iosApp */,
+				AC00000000000000000000D3 /* iosAppWidget */,
 				AB00000000000000000000D4 /* Products */,
 			);
 			sourceTree = "<group>";
@@ -63,8 +103,20 @@
 			isa = PBXGroup;
 			children = (
 				AB00000000000000000000B6 /* ImageCategorizer.app */,
+				AC00000000000000000000B5 /* RecentScreenshotsWidget.appex */,
 			);
 			name = Products;
+			sourceTree = "<group>";
+		};
+		AC00000000000000000000D3 /* iosAppWidget */ = {
+			isa = PBXGroup;
+			children = (
+				AC00000000000000000000B1 /* RecentScreenshotsWidget.swift */,
+				AC00000000000000000000B2 /* ScreenshotLibrary.swift */,
+				AC00000000000000000000B3 /* Info.plist */,
+				AC00000000000000000000B4 /* RecentScreenshotsWidget.entitlements */,
+			);
+			path = iosAppWidget;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
@@ -78,15 +130,34 @@
 				AB00000000000000000000C1 /* Frameworks */,
 				AB00000000000000000000E3 /* Sources */,
 				AB00000000000000000000E4 /* Resources */,
+				AC00000000000000000000E5 /* Embed Foundation Extensions */,
 			);
 			buildRules = (
 			);
 			dependencies = (
+				AC00000000000000000000EA /* PBXTargetDependency */,
 			);
 			name = ImageCategorizer;
 			productName = ImageCategorizer;
 			productReference = AB00000000000000000000B6 /* ImageCategorizer.app */;
 			productType = "com.apple.product-type.application";
+		};
+		AC00000000000000000000E1 /* RecentScreenshotsWidget */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = AC00000000000000000000F1 /* Build configuration list for PBXNativeTarget "RecentScreenshotsWidget" */;
+			buildPhases = (
+				AC00000000000000000000E3 /* Sources */,
+				AC00000000000000000000C1 /* Frameworks */,
+				AC00000000000000000000E4 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = RecentScreenshotsWidget;
+			productName = RecentScreenshotsWidget;
+			productReference = AC00000000000000000000B5 /* RecentScreenshotsWidget.appex */;
+			productType = "com.apple.product-type.app-extension";
 		};
 /* End PBXNativeTarget section */
 
@@ -99,6 +170,9 @@
 				LastUpgradeCheck = 1500;
 				TargetAttributes = {
 					AB00000000000000000000E1 = {
+						CreatedOnToolsVersion = 15.0;
+					};
+					AC00000000000000000000E1 = {
 						CreatedOnToolsVersion = 15.0;
 					};
 				};
@@ -117,12 +191,20 @@
 			projectRoot = "";
 			targets = (
 				AB00000000000000000000E1 /* ImageCategorizer */,
+				AC00000000000000000000E1 /* RecentScreenshotsWidget */,
 			);
 		};
 /* End PBXProject section */
 
 /* Begin PBXResourcesBuildPhase section */
 		AB00000000000000000000E4 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		AC00000000000000000000E4 /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -163,7 +245,24 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		AC00000000000000000000E3 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				AC00000000000000000000A1 /* RecentScreenshotsWidget.swift in Sources */,
+				AC00000000000000000000A2 /* ScreenshotLibrary.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXSourcesBuildPhase section */
+
+/* Begin PBXTargetDependency section */
+		AC00000000000000000000EA /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = AC00000000000000000000E1 /* RecentScreenshotsWidget */;
+			targetProxy = AC00000000000000000000E9 /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
 
 /* Begin XCBuildConfiguration section */
 		AB00000000000000000000F2 /* Debug */ = {
@@ -280,6 +379,52 @@
 			};
 			name = Release;
 		};
+		AC00000000000000000000F4 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				APPLICATION_EXTENSION_API_ONLY = YES;
+				CODE_SIGN_ENTITLEMENTS = iosAppWidget/RecentScreenshotsWidget.entitlements;
+				CODE_SIGN_IDENTITY = "Apple Development";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				INFOPLIST_FILE = iosAppWidget/Info.plist;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.agy.imagecategorizer.RecentScreenshotsWidget;
+				PRODUCT_NAME = RecentScreenshotsWidget;
+				SKIP_INSTALL = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Debug;
+		};
+		AC00000000000000000000F5 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				APPLICATION_EXTENSION_API_ONLY = YES;
+				CODE_SIGN_ENTITLEMENTS = iosAppWidget/RecentScreenshotsWidget.entitlements;
+				CODE_SIGN_IDENTITY = "Apple Development";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				INFOPLIST_FILE = iosAppWidget/Info.plist;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.agy.imagecategorizer.RecentScreenshotsWidget;
+				PRODUCT_NAME = RecentScreenshotsWidget;
+				SKIP_INSTALL = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Release;
+		};
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
@@ -297,6 +442,15 @@
 			buildConfigurations = (
 				AB00000000000000000000F4 /* Debug */,
 				AB00000000000000000000F5 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		AC00000000000000000000F1 /* Build configuration list for PBXNativeTarget "RecentScreenshotsWidget" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				AC00000000000000000000F4 /* Debug */,
+				AC00000000000000000000F5 /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
