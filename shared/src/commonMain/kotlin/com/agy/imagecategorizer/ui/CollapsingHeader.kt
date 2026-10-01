@@ -78,27 +78,47 @@ internal fun rememberCollapsingHeaderState(): CollapsingHeaderState {
     return remember(bar) { CollapsingHeaderState(bar) }
 }
 
-/** Stacks [content] vertically, shrinking and sliding it up by [state]'s header offset. */
+/**
+ * Stacks [top], [pinned] and [bottom]. As [state] collapses, [top] slides up out
+ * of view first, then [bottom] slides up underneath [pinned], which always stays.
+ */
 @Composable
 internal fun CollapsingHeader(
     state: CollapsingHeaderState,
     modifier: Modifier = Modifier,
-    content: @Composable () -> Unit,
+    top: @Composable () -> Unit,
+    pinned: @Composable () -> Unit,
+    bottom: @Composable () -> Unit = {},
 ) {
-    Layout(content, modifier.clipToBounds()) { measurables, constraints ->
-        val placeables = measurables.map {
-            it.measure(constraints.copy(minHeight = 0, maxHeight = Constraints.Infinity))
-        }
-        val fullHeight = placeables.sumOf { it.height }
-        state.headerHeightPx = fullHeight
+    Layout(listOf(top, pinned, bottom), modifier.clipToBounds()) { (tops, pins, bottoms), constraints ->
+        val free = constraints.copy(minHeight = 0, maxHeight = Constraints.Infinity)
+        val topPlaceables = tops.map { it.measure(free) }
+        val pinnedPlaceables = pins.map { it.measure(free) }
+        val bottomPlaceables = bottoms.map { it.measure(free) }
+        val topHeight = topPlaceables.sumOf { it.height }
+        val pinnedHeight = pinnedPlaceables.sumOf { it.height }
+        val bottomHeight = bottomPlaceables.sumOf { it.height }
+        state.headerHeightPx = topHeight + bottomHeight
         // Read in the layout phase so scrolling relayouts without recomposing.
-        val shown = (fullHeight + state.headerOffsetPx.roundToInt()).coerceIn(0, fullHeight)
-        layout(constraints.maxWidth, shown) {
-            var y = shown - fullHeight
-            placeables.forEach {
-                it.place(0, y)
-                y += it.height
-            }
+        val slots = headerSlots(-state.headerOffsetPx.roundToInt(), topHeight, bottomHeight)
+
+        layout(constraints.maxWidth, slots.topShown + pinnedHeight + slots.bottomShown) {
+            var y = slots.topShown - topHeight
+            topPlaceables.forEach { it.place(0, y); y += it.height }
+            y = slots.topShown + pinnedHeight - (bottomHeight - slots.bottomShown)
+            bottomPlaceables.forEach { it.place(0, y); y += it.height }
+            // Placed last so [bottom] slides underneath it.
+            y = slots.topShown
+            pinnedPlaceables.forEach { it.place(0, y, zIndex = 1f); y += it.height }
         }
     }
+}
+
+internal data class HeaderSlots(val topShown: Int, val bottomShown: Int)
+
+/** Splits [collapsedPx] of collapse: [top] gives way first, then [bottom]. */
+internal fun headerSlots(collapsedPx: Int, topHeight: Int, bottomHeight: Int): HeaderSlots {
+    val collapsed = collapsedPx.coerceIn(0, topHeight + bottomHeight)
+    val topHidden = collapsed.coerceAtMost(topHeight)
+    return HeaderSlots(topShown = topHeight - topHidden, bottomShown = bottomHeight - (collapsed - topHidden))
 }

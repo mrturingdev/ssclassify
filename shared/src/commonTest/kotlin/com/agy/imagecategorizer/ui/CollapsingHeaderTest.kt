@@ -54,3 +54,13 @@ class CollapsingHeaderTest {
         assertEquals(-30f, state.headerOffsetPx)
     }
 }
+
+class HeaderSlotsTest {
+    @Test
+    fun topCollapsesBeforeBottom() {
+        assertEquals(HeaderSlots(topShown = 60, bottomShown = 40), headerSlots(0, 60, 40))
+        assertEquals(HeaderSlots(topShown = 10, bottomShown = 40), headerSlots(50, 60, 40))
+        assertEquals(HeaderSlots(topShown = 0, bottomShown = 15), headerSlots(85, 60, 40))
+        assertEquals(HeaderSlots(topShown = 0, bottomShown = 0), headerSlots(500, 60, 40))
+    }
+}

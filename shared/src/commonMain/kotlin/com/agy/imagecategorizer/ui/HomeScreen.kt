@@ -441,34 +441,41 @@ private fun CategoryBrowser(
     }
 
     Column(Modifier.fillMaxSize()) {
-        // Search and filters collapse together with the top app bar.
-        CollapsingHeader(collapse) {
-            SearchField(query = query, onQueryChange = onQueryChange)
-            CategoryFilterRow(
-                counts = counts,
-                images = images,
-                selectedKey = selectedKey,
-                onSelect = onSelect,
-            )
-            if (isCleanupMode) {
-                if (cleanupImages.isNotEmpty()) {
-                    CleanupBanner(total = cleanupImages.size, blankCount = blankCount, uncatCount = uncatCount)
+        // Search and sub-filters collapse with the top app bar; the category row stays.
+        CollapsingHeader(
+            state = collapse,
+            top = { SearchField(query = query, onQueryChange = onQueryChange) },
+            pinned = {
+                CategoryFilterRow(
+                    counts = counts,
+                    images = images,
+                    selectedKey = selectedKey,
+                    onSelect = onSelect,
+                    // Opaque so the sub-filters can slide underneath it.
+                    modifier = Modifier.background(MaterialTheme.colorScheme.background),
+                )
+            },
+            bottom = {
+                if (isCleanupMode) {
+                    if (cleanupImages.isNotEmpty()) {
+                        CleanupBanner(total = cleanupImages.size, blankCount = blankCount, uncatCount = uncatCount)
+                    }
+                    CleanupFilterRow(
+                        selected = cleanupSubFilter,
+                        onSelect = { cleanupSubFilter = it },
+                        total = cleanupImages.size,
+                        blankCount = blankCount,
+                        uncatCount = uncatCount,
+                    )
+                } else if (subCategories.isNotEmpty()) {
+                    SubCategoryRow(
+                        subCategories = subCategories,
+                        selected = selectedSubCategoryKey,
+                        onSelect = onSelectSubCategory,
+                    )
                 }
-                CleanupFilterRow(
-                    selected = cleanupSubFilter,
-                    onSelect = { cleanupSubFilter = it },
-                    total = cleanupImages.size,
-                    blankCount = blankCount,
-                    uncatCount = uncatCount,
-                )
-            } else if (subCategories.isNotEmpty()) {
-                SubCategoryRow(
-                    subCategories = subCategories,
-                    selected = selectedSubCategoryKey,
-                    onSelect = onSelectSubCategory,
-                )
-            }
-        }
+            },
+        )
 
         when {
             visible.isNotEmpty() -> LazyVerticalGrid(
@@ -671,9 +678,11 @@ private fun CategoryFilterRow(
     images: List<ImageRecord>,
     selectedKey: String,
     onSelect: (String) -> Unit,
+    modifier: Modifier = Modifier,
 ) {
     val cleanupCount = images.count { it.isCleanUpCandidate }
     LazyRow(
+        modifier = modifier.fillMaxWidth(),
         contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
         horizontalArrangement = Arrangement.spacedBy(8.dp),
     ) {
