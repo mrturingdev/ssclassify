@@ -396,8 +396,6 @@ private fun CategoryBrowser(
     // Cleanup mode state
     val isCleanupMode = selectedKey == CLEANUP_KEY
     var cleanupSubFilter by remember(isCleanupMode) { mutableStateOf(CLEANUP_SUB_ALL) }
-    var selectedIds by remember(isCleanupMode) { mutableStateOf<Set<String>>(emptySet()) }
-    var showBulkDeleteConfirm by remember { mutableStateOf(false) }
 
     Column(Modifier.fillMaxSize()) {
         CategoryFilterRow(
@@ -408,8 +406,53 @@ private fun CategoryBrowser(
         )
 
         if (isCleanupMode) {
-            // Cleanup sub-filter chips
             val cleanupImages = images.filter { it.isCleanUpCandidate }
+            val blankCount = cleanupImages.count { it.isBlankScreen }
+            val uncatCount = cleanupImages.count { !it.isBlankScreen }
+
+            // ── Simple info banner ────────────────────────────────────────
+            if (cleanupImages.isNotEmpty()) {
+                Card(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp, vertical = 8.dp),
+                    shape = RoundedCornerShape(14.dp),
+                    colors = CardDefaults.cardColors(
+                        containerColor = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.6f),
+                    ),
+                ) {
+                    Row(
+                        modifier = Modifier.padding(horizontal = 14.dp, vertical = 12.dp),
+                        verticalAlignment = Alignment.Top,
+                        horizontalArrangement = Arrangement.spacedBy(12.dp),
+                    ) {
+                        Icon(
+                            Icons.Rounded.CleaningServices,
+                            contentDescription = null,
+                            modifier = Modifier.size(22.dp).padding(top = 2.dp),
+                            tint = MaterialTheme.colorScheme.onSecondaryContainer,
+                        )
+                        Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                            Text(
+                                text = "You can clean up ${cleanupImages.size} image${if (cleanupImages.size == 1) "" else "s"}",
+                                style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.SemiBold),
+                                color = MaterialTheme.colorScheme.onSecondaryContainer,
+                            )
+                            val parts = buildList {
+                                if (blankCount > 0) add("$blankCount blank screen${if (blankCount == 1) "" else "s"}")
+                                if (uncatCount > 0) add("$uncatCount uncategorized")
+                            }
+                            Text(
+                                text = parts.joinToString(" · ") + " — tap any image to delete it.",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSecondaryContainer.copy(alpha = 0.8f),
+                            )
+                        }
+                    }
+                }
+            }
+
+            // Sub-filter chips
             LazyRow(
                 contentPadding = PaddingValues(horizontal = 16.dp, vertical = 4.dp),
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -417,26 +460,24 @@ private fun CategoryBrowser(
                 item {
                     FilterChip(
                         selected = cleanupSubFilter == CLEANUP_SUB_ALL,
-                        onClick = { cleanupSubFilter = CLEANUP_SUB_ALL; selectedIds = emptySet() },
+                        onClick = { cleanupSubFilter = CLEANUP_SUB_ALL },
                         label = { Text("All (${cleanupImages.size})") },
                         shape = RoundedCornerShape(16.dp),
                     )
                 }
                 item {
-                    val blankCount = cleanupImages.count { it.isBlankScreen }
                     FilterChip(
                         selected = cleanupSubFilter == CLEANUP_SUB_BLANK,
-                        onClick = { cleanupSubFilter = CLEANUP_SUB_BLANK; selectedIds = emptySet() },
+                        onClick = { cleanupSubFilter = CLEANUP_SUB_BLANK },
                         label = { Text("Blank Screens ($blankCount)") },
                         leadingIcon = { Icon(Icons.Rounded.PhotoCamera, contentDescription = null, modifier = Modifier.size(14.dp)) },
                         shape = RoundedCornerShape(16.dp),
                     )
                 }
                 item {
-                    val uncatCount = cleanupImages.count { !it.isBlankScreen }
                     FilterChip(
                         selected = cleanupSubFilter == CLEANUP_SUB_UNCAT,
-                        onClick = { cleanupSubFilter = CLEANUP_SUB_UNCAT; selectedIds = emptySet() },
+                        onClick = { cleanupSubFilter = CLEANUP_SUB_UNCAT },
                         label = { Text("Uncategorized ($uncatCount)") },
                         leadingIcon = { Icon(Icons.Rounded.FolderOpen, contentDescription = null, modifier = Modifier.size(14.dp)) },
                         shape = RoundedCornerShape(16.dp),
@@ -448,44 +489,6 @@ private fun CategoryBrowser(
                 CLEANUP_SUB_BLANK -> cleanupImages.filter { it.isBlankScreen }
                 CLEANUP_SUB_UNCAT -> cleanupImages.filter { !it.isBlankScreen }
                 else -> cleanupImages
-            }
-
-            // Selection action bar
-            if (visible.isNotEmpty()) {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .background(MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.15f))
-                        .padding(horizontal = 16.dp, vertical = 8.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                ) {
-                    val allSelected = selectedIds.size == visible.size && visible.isNotEmpty()
-                    FilledTonalButton(
-                        onClick = {
-                            selectedIds = if (allSelected) emptySet() else visible.map { it.id }.toSet()
-                        },
-                        shape = RoundedCornerShape(12.dp),
-                        modifier = Modifier.height(36.dp),
-                    ) {
-                        Text(if (allSelected) "Deselect All" else "Select All", style = MaterialTheme.typography.labelMedium)
-                    }
-                    Spacer(Modifier.weight(1f))
-                    if (selectedIds.isNotEmpty()) {
-                        Button(
-                            onClick = { showBulkDeleteConfirm = true },
-                            shape = RoundedCornerShape(12.dp),
-                            colors = ButtonDefaults.buttonColors(
-                                containerColor = MaterialTheme.colorScheme.error,
-                            ),
-                            modifier = Modifier.height(36.dp),
-                        ) {
-                            Icon(Icons.Rounded.Delete, contentDescription = null, modifier = Modifier.size(16.dp))
-                            Spacer(Modifier.width(4.dp))
-                            Text("Delete (${selectedIds.size})", style = MaterialTheme.typography.labelMedium)
-                        }
-                    }
-                }
             }
 
             if (visible.isEmpty()) {
@@ -519,50 +522,13 @@ private fun CategoryBrowser(
                     modifier = Modifier.fillMaxSize(),
                 ) {
                     items(visible, key = { it.id }) { image ->
-                        val checked = image.id in selectedIds
                         ImageCard(
                             image = image,
                             thumbnailLoader = thumbnailLoader,
-                            selectable = true,
-                            checked = checked,
-                            onClick = {
-                                selectedIds = if (checked) selectedIds - image.id else selectedIds + image.id
-                            },
+                            onClick = { detailId = image.id },
                         )
                     }
                 }
-            }
-
-            // Bulk delete confirmation dialog
-            if (showBulkDeleteConfirm) {
-                AlertDialog(
-                    onDismissRequest = { showBulkDeleteConfirm = false },
-                    title = { Text("Delete ${selectedIds.size} Screenshot${if (selectedIds.size == 1) "" else "s"}?") },
-                    text = { Text("This will permanently delete the selected screenshot${if (selectedIds.size == 1) "" else "s"} from your device. This action cannot be undone.") },
-                    confirmButton = {
-                        Button(
-                            onClick = {
-                                showBulkDeleteConfirm = false
-                                onDeleteScreenshots(selectedIds.toList())
-                                selectedIds = emptySet()
-                            },
-                            colors = ButtonDefaults.buttonColors(
-                                containerColor = MaterialTheme.colorScheme.error,
-                            ),
-                            shape = RoundedCornerShape(12.dp),
-                        ) {
-                            Text("Delete Permanently")
-                        }
-                    },
-                    dismissButton = {
-                        FilledTonalButton(
-                            onClick = { showBulkDeleteConfirm = false },
-                            shape = RoundedCornerShape(12.dp),
-                        ) {
-                            Text("Cancel")
-                        }
-                    },
-                )
             }
         } else {
             // Normal (non-cleanup) browse mode
@@ -651,27 +617,28 @@ private fun CategoryBrowser(
         }
     }
 
-    // Detail dialog (only in non-cleanup browse mode)
-    if (!isCleanupMode) {
-        images.firstOrNull { it.id == detailId }?.let { detailImage ->
-            ImageDetailDialog(
-                image = detailImage,
-                thumbnailLoader = thumbnailLoader,
-                onDismiss = { detailId = null },
-                onCategoryChange = { onCategoryChange(detailImage.id, it) },
-                onOpenFullscreen = { onOpenFullscreen(detailImage.id) },
-                onNavigateToDetails = {
-                    detailId = null
-                    onNavigateToDetails(detailImage.id)
-                },
-                onDelete = {
+    // Detail dialog — shown in both cleanup and normal mode
+    images.firstOrNull { it.id == detailId }?.let { detailImage ->
+        ImageDetailDialog(
+            image = detailImage,
+            thumbnailLoader = thumbnailLoader,
+            onDismiss = { detailId = null },
+            onCategoryChange = { onCategoryChange(detailImage.id, it) },
+            onOpenFullscreen = { onOpenFullscreen(detailImage.id) },
+            onNavigateToDetails = {
+                detailId = null
+                onNavigateToDetails(detailImage.id)
+            },
+            onDelete = if (isCleanupMode || detailImage.isCleanUpCandidate) {
+                {
                     detailId = null
                     onDeleteScreenshots(listOf(detailImage.id))
-                },
-            )
-        }
+                }
+            } else null,
+        )
     }
 }
+
 
 
 @Composable
