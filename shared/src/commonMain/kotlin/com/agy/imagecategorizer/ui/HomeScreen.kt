@@ -86,6 +86,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
@@ -129,6 +130,7 @@ fun HomeScreen(
     var selectedSubCategory by rememberSaveable { mutableStateOf<String?>(null) }
     var activeDetailId by rememberSaveable { mutableStateOf<String?>(null) }
     var fullscreenImageId by rememberSaveable { mutableStateOf<String?>(null) }
+    val collapse = rememberCollapsingHeaderState()
 
     LaunchedEffect(Unit) {
         scanner.watchChanges().collect { onScan() }
@@ -164,6 +166,11 @@ fun HomeScreen(
             modifier = modifier,
         )
     } else {
+        // Only Success shows a scrollable grid; anywhere else a hidden bar could never come back.
+        val canCollapse = outcome is ScanOutcome.Success
+        LaunchedEffect(canCollapse) {
+            if (!canCollapse) collapse.expand()
+        }
         Scaffold(
             topBar = {
                 CenterAlignedTopAppBar(
@@ -186,10 +193,13 @@ fun HomeScreen(
                     },
                     colors = TopAppBarDefaults.topAppBarColors(
                         containerColor = MaterialTheme.colorScheme.surfaceVariant,
+                        scrolledContainerColor = MaterialTheme.colorScheme.surfaceVariant,
                     ),
+                    // Pinned so the bar ignores scrolling itself; [collapse] drives its height offset.
+                    scrollBehavior = TopAppBarDefaults.pinnedScrollBehavior(collapse.bar),
                 )
             },
-            modifier = modifier,
+            modifier = modifier.nestedScroll(collapse.connection),
         ) { padding ->
             Column(
                 modifier = Modifier
@@ -223,9 +233,11 @@ fun HomeScreen(
                     outcome is ScanOutcome.Success -> {
                         // Cached results stay visible while an incremental scan catches up.
                         if (scanning) LinearProgressIndicator(Modifier.fillMaxWidth())
-                        SearchField(query = query, onQueryChange = onQueryChange)
                         val searching = query.isNotBlank()
                         CategoryBrowser(
+                            collapse = collapse,
+                            query = query,
+                            onQueryChange = onQueryChange,
                             images = searchResults ?: outcome.images,
                             emptyMessage = if (searching) {
                                 "No screenshots contain \u201C${query.trim()}\u201D."
@@ -375,6 +387,9 @@ private fun EmptyLook(modifier: Modifier, onScan: () -> Unit) {
 
 @Composable
 private fun CategoryBrowser(
+    collapse: CollapsingHeaderState,
+    query: String,
+    onQueryChange: (String) -> Unit,
     images: List<ImageRecord>,
     emptyMessage: String,
     onRescan: (() -> Unit)?,
@@ -396,221 +411,122 @@ private fun CategoryBrowser(
     // Cleanup mode state
     val isCleanupMode = selectedKey == CLEANUP_KEY
     var cleanupSubFilter by remember(isCleanupMode) { mutableStateOf(CLEANUP_SUB_ALL) }
+    val cleanupImages = images.filter { it.isCleanUpCandidate }
+    val blankCount = cleanupImages.count { it.isBlankScreen }
+    val uncatCount = cleanupImages.size - blankCount
+
+    val selectedBaseImages = when (selectedKey) {
+        ALL_KEY -> images
+        CLEANUP_KEY -> cleanupImages
+        else -> grouped.entries.firstOrNull { it.key.name == selectedKey }?.value.orEmpty()
+    }
+    val subCategories = if (isCleanupMode || selectedKey == ALL_KEY) {
+        emptyList()
+    } else {
+        selectedBaseImages.mapNotNull { it.subCategory }.distinct().sorted()
+    }
+    val visible = when {
+        isCleanupMode -> when (cleanupSubFilter) {
+            CLEANUP_SUB_BLANK -> cleanupImages.filter { it.isBlankScreen }
+            CLEANUP_SUB_UNCAT -> cleanupImages.filter { !it.isBlankScreen }
+            else -> cleanupImages
+        }
+        selectedSubCategoryKey != null -> selectedBaseImages.filter { it.subCategory == selectedSubCategoryKey }
+        else -> selectedBaseImages
+    }
+
+    // An empty pane cannot scroll, so a hidden header could never come back.
+    LaunchedEffect(visible.isEmpty()) {
+        if (visible.isEmpty()) collapse.expand()
+    }
 
     Column(Modifier.fillMaxSize()) {
-        CategoryFilterRow(
-            counts = counts,
-            images = images,
-            selectedKey = selectedKey,
-            onSelect = onSelect,
-        )
-
-        if (isCleanupMode) {
-            val cleanupImages = images.filter { it.isCleanUpCandidate }
-            val blankCount = cleanupImages.count { it.isBlankScreen }
-            val uncatCount = cleanupImages.count { !it.isBlankScreen }
-
-            // ── Simple info banner ────────────────────────────────────────
-            if (cleanupImages.isNotEmpty()) {
-                Card(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 16.dp, vertical = 8.dp),
-                    shape = RoundedCornerShape(14.dp),
-                    colors = CardDefaults.cardColors(
-                        containerColor = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.6f),
-                    ),
-                ) {
-                    Row(
-                        modifier = Modifier.padding(horizontal = 14.dp, vertical = 12.dp),
-                        verticalAlignment = Alignment.Top,
-                        horizontalArrangement = Arrangement.spacedBy(12.dp),
-                    ) {
-                        Icon(
-                            Icons.Rounded.CleaningServices,
-                            contentDescription = null,
-                            modifier = Modifier.size(22.dp).padding(top = 2.dp),
-                            tint = MaterialTheme.colorScheme.onSecondaryContainer,
-                        )
-                        Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                            Text(
-                                text = "You can clean up ${cleanupImages.size} image${if (cleanupImages.size == 1) "" else "s"}",
-                                style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.SemiBold),
-                                color = MaterialTheme.colorScheme.onSecondaryContainer,
-                            )
-                            val parts = buildList {
-                                if (blankCount > 0) add("$blankCount blank screen${if (blankCount == 1) "" else "s"}")
-                                if (uncatCount > 0) add("$uncatCount uncategorized")
-                            }
-                            Text(
-                                text = parts.joinToString(" · ") + " — tap any image to delete it.",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSecondaryContainer.copy(alpha = 0.8f),
-                            )
-                        }
-                    }
+        // Search and filters collapse together with the top app bar.
+        CollapsingHeader(collapse) {
+            SearchField(query = query, onQueryChange = onQueryChange)
+            CategoryFilterRow(
+                counts = counts,
+                images = images,
+                selectedKey = selectedKey,
+                onSelect = onSelect,
+            )
+            if (isCleanupMode) {
+                if (cleanupImages.isNotEmpty()) {
+                    CleanupBanner(total = cleanupImages.size, blankCount = blankCount, uncatCount = uncatCount)
                 }
+                CleanupFilterRow(
+                    selected = cleanupSubFilter,
+                    onSelect = { cleanupSubFilter = it },
+                    total = cleanupImages.size,
+                    blankCount = blankCount,
+                    uncatCount = uncatCount,
+                )
+            } else if (subCategories.isNotEmpty()) {
+                SubCategoryRow(
+                    subCategories = subCategories,
+                    selected = selectedSubCategoryKey,
+                    onSelect = onSelectSubCategory,
+                )
             }
+        }
 
-            // Sub-filter chips
-            LazyRow(
-                contentPadding = PaddingValues(horizontal = 16.dp, vertical = 4.dp),
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
+        when {
+            visible.isNotEmpty() -> LazyVerticalGrid(
+                columns = GridCells.Adaptive(minSize = 110.dp),
+                state = rememberLazyGridState(),
+                contentPadding = PaddingValues(start = 12.dp, end = 12.dp, top = 8.dp, bottom = 16.dp),
+                horizontalArrangement = Arrangement.spacedBy(6.dp),
+                verticalArrangement = Arrangement.spacedBy(6.dp),
+                modifier = Modifier.fillMaxSize(),
             ) {
-                item {
-                    FilterChip(
-                        selected = cleanupSubFilter == CLEANUP_SUB_ALL,
-                        onClick = { cleanupSubFilter = CLEANUP_SUB_ALL },
-                        label = { Text("All (${cleanupImages.size})") },
-                        shape = RoundedCornerShape(16.dp),
-                    )
-                }
-                item {
-                    FilterChip(
-                        selected = cleanupSubFilter == CLEANUP_SUB_BLANK,
-                        onClick = { cleanupSubFilter = CLEANUP_SUB_BLANK },
-                        label = { Text("Blank Screens ($blankCount)") },
-                        leadingIcon = { Icon(Icons.Rounded.PhotoCamera, contentDescription = null, modifier = Modifier.size(14.dp)) },
-                        shape = RoundedCornerShape(16.dp),
-                    )
-                }
-                item {
-                    FilterChip(
-                        selected = cleanupSubFilter == CLEANUP_SUB_UNCAT,
-                        onClick = { cleanupSubFilter = CLEANUP_SUB_UNCAT },
-                        label = { Text("Uncategorized ($uncatCount)") },
-                        leadingIcon = { Icon(Icons.Rounded.FolderOpen, contentDescription = null, modifier = Modifier.size(14.dp)) },
-                        shape = RoundedCornerShape(16.dp),
+                items(visible, key = { it.id }) { image ->
+                    ImageCard(
+                        image = image,
+                        thumbnailLoader = thumbnailLoader,
+                        onClick = { detailId = image.id },
                     )
                 }
             }
 
-            val visible = when (cleanupSubFilter) {
-                CLEANUP_SUB_BLANK -> cleanupImages.filter { it.isBlankScreen }
-                CLEANUP_SUB_UNCAT -> cleanupImages.filter { !it.isBlankScreen }
-                else -> cleanupImages
-            }
-
-            if (visible.isEmpty()) {
-                Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                    Column(
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                        verticalArrangement = Arrangement.spacedBy(16.dp),
-                    ) {
-                        Icon(
-                            Icons.Rounded.CleaningServices,
-                            contentDescription = null,
-                            modifier = Modifier.size(48.dp),
-                            tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f),
-                        )
-                        Text(
-                            "No items to clean up!",
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            textAlign = TextAlign.Center,
-                        )
-                    }
-                }
-            } else {
-                val gridState = rememberLazyGridState()
-                LazyVerticalGrid(
-                    columns = GridCells.Adaptive(minSize = 110.dp),
-                    state = gridState,
-                    contentPadding = PaddingValues(start = 12.dp, end = 12.dp, top = 8.dp, bottom = 16.dp),
-                    horizontalArrangement = Arrangement.spacedBy(6.dp),
-                    verticalArrangement = Arrangement.spacedBy(6.dp),
-                    modifier = Modifier.fillMaxSize(),
+            isCleanupMode -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.spacedBy(16.dp),
                 ) {
-                    items(visible, key = { it.id }) { image ->
-                        ImageCard(
-                            image = image,
-                            thumbnailLoader = thumbnailLoader,
-                            onClick = { detailId = image.id },
-                        )
-                    }
-                }
-            }
-        } else {
-            // Normal (non-cleanup) browse mode
-            val selectedBaseImages = if (selectedKey == ALL_KEY) {
-                images
-            } else {
-                grouped.entries.firstOrNull { it.key.name == selectedKey }?.value.orEmpty()
-            }
-
-            // Subcategory filter row
-            if (selectedKey != ALL_KEY && selectedBaseImages.isNotEmpty()) {
-                val subCategories = selectedBaseImages.mapNotNull { it.subCategory }.distinct().sorted()
-                if (subCategories.isNotEmpty()) {
-                    LazyRow(
-                        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 2.dp),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    ) {
-                        item {
-                            FilterChip(
-                                selected = selectedSubCategoryKey == null,
-                                onClick = { onSelectSubCategory(null) },
-                                label = { Text("All") },
-                                shape = RoundedCornerShape(16.dp),
-                            )
-                        }
-                        items(subCategories, key = { it }) { sub ->
-                            FilterChip(
-                                selected = selectedSubCategoryKey == sub,
-                                onClick = { onSelectSubCategory(sub) },
-                                label = { Text(sub) },
-                                shape = RoundedCornerShape(16.dp),
-                            )
-                        }
-                    }
+                    Icon(
+                        Icons.Rounded.CleaningServices,
+                        contentDescription = null,
+                        modifier = Modifier.size(48.dp),
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f),
+                    )
+                    Text(
+                        "No items to clean up!",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        textAlign = TextAlign.Center,
+                    )
                 }
             }
 
-            val visible = if (selectedSubCategoryKey != null) {
-                selectedBaseImages.filter { it.subCategory == selectedSubCategoryKey }
-            } else {
-                selectedBaseImages
-            }
-
-            if (visible.isEmpty()) {
-                Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                    Column(
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                        verticalArrangement = Arrangement.spacedBy(16.dp),
-                    ) {
-                        Text(
-                            emptyMessage,
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            textAlign = TextAlign.Center,
-                            modifier = Modifier.padding(horizontal = 32.dp),
-                        )
-                        if (onRescan != null) {
-                            FilledTonalButton(
-                                onClick = onRescan,
-                                shape = RoundedCornerShape(16.dp),
-                            ) {
-                                Text("Rescan")
-                            }
-                        }
-                    }
-                }
-            } else {
-                val gridState = rememberLazyGridState()
-                LazyVerticalGrid(
-                    columns = GridCells.Adaptive(minSize = 110.dp),
-                    state = gridState,
-                    contentPadding = PaddingValues(start = 12.dp, end = 12.dp, top = 8.dp, bottom = 16.dp),
-                    horizontalArrangement = Arrangement.spacedBy(6.dp),
-                    verticalArrangement = Arrangement.spacedBy(6.dp),
-                    modifier = Modifier.fillMaxSize(),
+            else -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.spacedBy(16.dp),
                 ) {
-                    items(visible, key = { it.id }) { image ->
-                        ImageCard(
-                            image = image,
-                            thumbnailLoader = thumbnailLoader,
-                            onClick = { detailId = image.id },
-                        )
+                    Text(
+                        emptyMessage,
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        textAlign = TextAlign.Center,
+                        modifier = Modifier.padding(horizontal = 32.dp),
+                    )
+                    if (onRescan != null) {
+                        FilledTonalButton(
+                            onClick = onRescan,
+                            shape = RoundedCornerShape(16.dp),
+                        ) {
+                            Text("Rescan")
+                        }
                     }
                 }
             }
@@ -640,6 +556,114 @@ private fun CategoryBrowser(
 }
 
 
+
+@Composable
+private fun CleanupBanner(total: Int, blankCount: Int, uncatCount: Int) {
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 8.dp),
+        shape = RoundedCornerShape(14.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.6f),
+        ),
+    ) {
+        Row(
+            modifier = Modifier.padding(horizontal = 14.dp, vertical = 12.dp),
+            verticalAlignment = Alignment.Top,
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            Icon(
+                Icons.Rounded.CleaningServices,
+                contentDescription = null,
+                modifier = Modifier.size(22.dp).padding(top = 2.dp),
+                tint = MaterialTheme.colorScheme.onSecondaryContainer,
+            )
+            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                Text(
+                    text = "You can clean up $total image${if (total == 1) "" else "s"}",
+                    style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.SemiBold),
+                    color = MaterialTheme.colorScheme.onSecondaryContainer,
+                )
+                val parts = buildList {
+                    if (blankCount > 0) add("$blankCount blank screen${if (blankCount == 1) "" else "s"}")
+                    if (uncatCount > 0) add("$uncatCount uncategorized")
+                }
+                Text(
+                    text = parts.joinToString(" · ") + " - tap any image to delete it.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSecondaryContainer.copy(alpha = 0.8f),
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun CleanupFilterRow(
+    selected: String,
+    onSelect: (String) -> Unit,
+    total: Int,
+    blankCount: Int,
+    uncatCount: Int,
+) {
+    LazyRow(
+        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 4.dp),
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        item {
+            FilterChip(
+                selected = selected == CLEANUP_SUB_ALL,
+                onClick = { onSelect(CLEANUP_SUB_ALL) },
+                label = { Text("All ($total)") },
+                shape = RoundedCornerShape(16.dp),
+            )
+        }
+        item {
+            FilterChip(
+                selected = selected == CLEANUP_SUB_BLANK,
+                onClick = { onSelect(CLEANUP_SUB_BLANK) },
+                label = { Text("Blank Screens ($blankCount)") },
+                leadingIcon = { Icon(Icons.Rounded.PhotoCamera, contentDescription = null, modifier = Modifier.size(14.dp)) },
+                shape = RoundedCornerShape(16.dp),
+            )
+        }
+        item {
+            FilterChip(
+                selected = selected == CLEANUP_SUB_UNCAT,
+                onClick = { onSelect(CLEANUP_SUB_UNCAT) },
+                label = { Text("Uncategorized ($uncatCount)") },
+                leadingIcon = { Icon(Icons.Rounded.FolderOpen, contentDescription = null, modifier = Modifier.size(14.dp)) },
+                shape = RoundedCornerShape(16.dp),
+            )
+        }
+    }
+}
+
+@Composable
+private fun SubCategoryRow(subCategories: List<String>, selected: String?, onSelect: (String?) -> Unit) {
+    LazyRow(
+        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 2.dp),
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        item {
+            FilterChip(
+                selected = selected == null,
+                onClick = { onSelect(null) },
+                label = { Text("All") },
+                shape = RoundedCornerShape(16.dp),
+            )
+        }
+        items(subCategories, key = { it }) { sub ->
+            FilterChip(
+                selected = selected == sub,
+                onClick = { onSelect(sub) },
+                label = { Text(sub) },
+                shape = RoundedCornerShape(16.dp),
+            )
+        }
+    }
+}
 
 @Composable
 private fun CategoryFilterRow(
