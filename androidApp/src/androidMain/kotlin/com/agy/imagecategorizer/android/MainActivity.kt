@@ -3,6 +3,7 @@ package com.agy.imagecategorizer.android
 import android.Manifest
 import android.appwidget.AppWidgetManager
 import android.content.ComponentName
+import android.content.Intent
 import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Bundle
@@ -14,6 +15,7 @@ import androidx.core.content.ContextCompat
 import com.agy.imagecategorizer.App
 import com.agy.imagecategorizer.android.widget.RecentScreenshotsWidgetProvider
 import com.agy.imagecategorizer.data.initAndroid
+import com.agy.imagecategorizer.widget.DeepLinks
 
 class MainActivity : ComponentActivity() {
 
@@ -29,6 +31,7 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
         super.onCreate(savedInstanceState)
         initAndroid(this)
+        openRequestedScreenshot(intent)
 
         if (hasPhotoPermission()) {
             setAppContent(permissionGranted = true)
@@ -42,6 +45,18 @@ class MainActivity : ComponentActivity() {
         contentSet = true
         setContent {
             App(isPermissionGranted = permissionGranted, pinWidget = widgetPinner())
+        }
+    }
+
+    // A widget tap while the app is already open (the intent uses SINGLE_TOP).
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        openRequestedScreenshot(intent)
+    }
+
+    private fun openRequestedScreenshot(intent: Intent?) {
+        intent?.getStringExtra(RecentScreenshotsWidgetProvider.EXTRA_SCREENSHOT_ID)?.let {
+            DeepLinks.pendingScreenshotId = it
         }
     }
 
