@@ -1,6 +1,8 @@
 package com.agy.imagecategorizer.android
 
 import android.Manifest
+import android.appwidget.AppWidgetManager
+import android.content.ComponentName
 import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Bundle
@@ -10,6 +12,7 @@ import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.core.content.ContextCompat
 import com.agy.imagecategorizer.App
+import com.agy.imagecategorizer.android.widget.RecentScreenshotsWidgetProvider
 import com.agy.imagecategorizer.data.initAndroid
 
 class MainActivity : ComponentActivity() {
@@ -38,8 +41,17 @@ class MainActivity : ComponentActivity() {
         if (contentSet) return
         contentSet = true
         setContent {
-            App(isPermissionGranted = permissionGranted)
+            App(isPermissionGranted = permissionGranted, pinWidget = widgetPinner())
         }
+    }
+
+    /** Pins the recent-screenshots widget, or null when the launcher cannot. */
+    private fun widgetPinner(): (() -> Unit)? {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) return null
+        val manager = getSystemService(AppWidgetManager::class.java)
+        if (manager?.isRequestPinAppWidgetSupported != true) return null
+        val provider = ComponentName(this, RecentScreenshotsWidgetProvider::class.java)
+        return { manager.requestPinAppWidget(provider, null, null) }
     }
 
     private fun hasPhotoPermission(): Boolean =

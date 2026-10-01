@@ -53,6 +53,7 @@ import androidx.compose.material.icons.rounded.Refresh
 import androidx.compose.material.icons.rounded.Restaurant
 import androidx.compose.material.icons.rounded.Screenshot
 import androidx.compose.material.icons.rounded.Search
+import androidx.compose.material.icons.rounded.Settings
 import androidx.compose.material.icons.rounded.Share
 import androidx.compose.material.icons.rounded.ShoppingCart
 import androidx.compose.material.icons.rounded.Work
@@ -125,6 +126,7 @@ fun HomeScreen(
     searchResults: List<ImageRecord>?,
     onCategoryChange: (id: String, category: ImageCategory?) -> Unit,
     onDeleteScreenshots: (List<String>) -> Unit = {},
+    onOpenSettings: () -> Unit = {},
 ) {
     var selected by rememberSaveable { mutableStateOf(ALL_KEY) }
     var selectedSubCategory by rememberSaveable { mutableStateOf<String?>(null) }
@@ -189,6 +191,9 @@ fun HomeScreen(
                     actions = {
                         IconButton(onClick = onScan, enabled = !scanning) {
                             Icon(Icons.Rounded.Refresh, contentDescription = "Rescan")
+                        }
+                        IconButton(onClick = onOpenSettings) {
+                            Icon(Icons.Rounded.Settings, contentDescription = "Settings")
                         }
                     },
                     colors = TopAppBarDefaults.topAppBarColors(

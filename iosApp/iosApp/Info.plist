@@ -24,6 +24,9 @@
 	<string>1</string>
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
+	<key>SSAppStoreID</key>
+	<!-- Numeric Apple ID from App Store Connect (App Information). Empty until the app is published. -->
+	<string></string>
 	<key>NSPhotoLibraryUsageDescription</key>
 	<string>S.S. Classify reads the screenshots in your photo library on this device so it can group and search them. Nothing is uploaded.</string>
 	<key>UILaunchScreen</key>

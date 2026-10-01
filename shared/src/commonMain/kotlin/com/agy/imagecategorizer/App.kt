@@ -11,9 +11,12 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.saveable.rememberSaveableStateHolder
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.backhandler.BackHandler
 import androidx.compose.ui.graphics.Color
 import com.agy.imagecategorizer.data.MediaScanner
 import com.agy.imagecategorizer.data.ScanOutcome
@@ -21,7 +24,12 @@ import com.agy.imagecategorizer.data.ScreenshotRepository
 import com.agy.imagecategorizer.data.ThumbnailLoader
 import com.agy.imagecategorizer.data.createSqlDriver
 import com.agy.imagecategorizer.model.ImageRecord
+import com.agy.imagecategorizer.settings.ApplySystemTheme
+import com.agy.imagecategorizer.settings.ThemeMode
+import com.agy.imagecategorizer.settings.loadThemeMode
+import com.agy.imagecategorizer.settings.saveThemeMode
 import com.agy.imagecategorizer.ui.HomeScreen
+import com.agy.imagecategorizer.ui.SettingsScreen
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
@@ -41,9 +49,20 @@ private val LightOnSelection = Color(0xFF003A75)
 private val DarkSelection = Color(0xFF1B3A5E)
 private val DarkOnSelection = Color(0xFFD6E6FF)
 
+/**
+ * @param pinWidget asks the launcher to pin the home-screen widget; null where the
+ * app cannot (iOS, older Android launchers), so Settings shows manual steps instead.
+ */
+@OptIn(ExperimentalComposeUiApi::class)
 @Composable
-fun App(isPermissionGranted: Boolean = true) {
-    val darkTheme = isSystemInDarkTheme()
+fun App(isPermissionGranted: Boolean = true, pinWidget: (() -> Unit)? = null) {
+    var themeMode by remember { mutableStateOf(loadThemeMode()) }
+    val darkTheme = when (themeMode) {
+        ThemeMode.System -> isSystemInDarkTheme()
+        ThemeMode.Light -> false
+        ThemeMode.Dark -> true
+    }
+    ApplySystemTheme(themeMode, darkTheme)
     val colorScheme = if (darkTheme) {
         darkColorScheme(
             primary = ActionBlue,
@@ -117,30 +136,53 @@ fun App(isPermissionGranted: Boolean = true) {
             searchResults = repository.search(query)
         }
 
-        HomeScreen(
-            modifier = Modifier.fillMaxSize(),
-            scanning = scanning,
-            outcome = outcome,
-            scanner = scanner,
-            thumbnailLoader = loader,
-            onScan = ::triggerScan,
-            query = query,
-            onQueryChange = { query = it },
-            searchResults = searchResults,
-            onCategoryChange = { id, category ->
-                scope.launch {
-                    repository.setCategory(id, category)
-                    // Reload so grid, chip counts and (via the search effect) results reflect it.
-                    outcome = ScanOutcome.Success(repository.cached())
-                }
-            },
-            onDeleteScreenshots = { ids ->
-                scope.launch {
-                    repository.deleteScreenshots(ids)
-                    outcome = ScanOutcome.Success(repository.cached())
-                }
-            },
-        )
+        var showSettings by rememberSaveable { mutableStateOf(false) }
+        // Keeps the home screen's saved state (category, scroll) while Settings is open.
+        val screens = rememberSaveableStateHolder()
+        if (showSettings) {
+            // Deprecated for NavigationEventHandler, which needs activity 1.12+ on Android;
+            // this one still routes through the OnBackPressedDispatcher of activity 1.10.
+            @Suppress("DEPRECATION")
+            BackHandler { showSettings = false }
+            SettingsScreen(
+                themeMode = themeMode,
+                onThemeModeChange = {
+                    themeMode = it
+                    saveThemeMode(it)
+                },
+                pinWidget = pinWidget,
+                onBack = { showSettings = false },
+                modifier = Modifier.fillMaxSize(),
+            )
+        } else {
+            screens.SaveableStateProvider("home") {
+                HomeScreen(
+                    modifier = Modifier.fillMaxSize(),
+                    onOpenSettings = { showSettings = true },
+                    scanning = scanning,
+                    outcome = outcome,
+                    scanner = scanner,
+                    thumbnailLoader = loader,
+                    onScan = ::triggerScan,
+                    query = query,
+                    onQueryChange = { query = it },
+                    searchResults = searchResults,
+                    onCategoryChange = { id, category ->
+                        scope.launch {
+                            repository.setCategory(id, category)
+                            // Reload so grid, chip counts and (via the search effect) results reflect it.
+                            outcome = ScanOutcome.Success(repository.cached())
+                        }
+                    },
+                    onDeleteScreenshots = { ids ->
+                        scope.launch {
+                            repository.deleteScreenshots(ids)
+                            outcome = ScanOutcome.Success(repository.cached())
+                        }
+                    },
+                )
+            }
+        }
     }
 }
 
