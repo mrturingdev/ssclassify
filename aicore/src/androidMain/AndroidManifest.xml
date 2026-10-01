@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
+
+    <!-- Allows apps with minSdk < 31 to consume this library, guarding AICore calls at runtime -->
+    <uses-sdk tools:overrideLibrary="com.google.ai.edge.aicore" />
+
+    <!-- AICore background service binding permission -->
+    <uses-permission android:name="com.google.android.apps.aicore.service.BIND_SERVICE" />
+
+    <!-- Package query to check AICore system service availability on Android 11+ (API 30+) -->
+    <queries>
+        <package android:name="com.google.android.aicore" />
+    </queries>
+
+</manifest>
