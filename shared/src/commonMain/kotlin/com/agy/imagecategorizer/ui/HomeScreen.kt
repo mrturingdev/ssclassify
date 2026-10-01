@@ -148,10 +148,11 @@ fun HomeScreen(
     val fullscreenImage = currentImages.firstOrNull { it.id == fullscreenImageId }
         ?: (outcome as? ScanOutcome.Success)?.images?.firstOrNull { it.id == fullscreenImageId }
 
-    LaunchedEffect(activeDetailId, currentImages) {
-        if (activeDetailId != null && activeDetailImage == null) {
-            activeDetailId = null
-        }
+    // Decided here, not inside the effect: the effect would read activeDetailId live but
+    // activeDetailImage from an older frame, and close a page another effect just opened.
+    val detailGone = activeDetailId != null && activeDetailImage == null
+    LaunchedEffect(detailGone) {
+        if (detailGone) activeDetailId = null
     }
 
     if (activeDetailImage != null) {
