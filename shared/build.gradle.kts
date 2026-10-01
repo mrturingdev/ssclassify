@@ -50,6 +50,7 @@ kotlin {
             implementation(libs.androidx.activity.compose)
             implementation(libs.tensorflow.lite.task.vision)
             implementation(libs.mlkit.text.recognition)
+            implementation(libs.mlkit.barcode.scanning)
             implementation(libs.sqldelight.android.driver)
         }
         iosMain.dependencies {

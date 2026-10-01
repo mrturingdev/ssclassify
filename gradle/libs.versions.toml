@@ -32,6 +32,7 @@ sqldelight-native-driver = { module = "app.cash.sqldelight:native-driver", versi
 sqldelight-sqlite-driver = { module = "app.cash.sqldelight:sqlite-driver", version.ref = "sqldelight" }
 tensorflow-lite-task-vision = { module = "org.tensorflow:tensorflow-lite-task-vision", version = "0.4.4" }
 mlkit-text-recognition = { module = "com.google.mlkit:text-recognition", version = "16.0.1" }
+mlkit-barcode-scanning = { module = "com.google.mlkit:barcode-scanning", version = "17.3.0" }
 
 [plugins]
 androidApplication = { id = "com.android.application", version.ref = "agp" }

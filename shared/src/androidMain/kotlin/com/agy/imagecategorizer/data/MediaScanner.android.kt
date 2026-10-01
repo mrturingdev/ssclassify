@@ -25,6 +25,7 @@ import com.agy.imagecategorizer.classify.OcrHelper
 import com.agy.imagecategorizer.classify.OcrLine
 import com.agy.imagecategorizer.classify.OcrMeaningProvider
 import com.agy.imagecategorizer.classify.OcrTextProcessor
+import com.agy.imagecategorizer.classify.QrCodeDetector
 import com.agy.imagecategorizer.classify.ScreenshotCategorizer
 import com.agy.imagecategorizer.classify.TensorFlowVisionHelper
 import com.agy.imagecategorizer.db.ScreenshotDatabase
@@ -196,6 +197,19 @@ actual class MediaScanner actual constructor() : ScreenshotSource {
         try {
             val lines = ocrHelper.recognizeLines(bitmap)
             val text = OcrTextProcessor.process(lines)
+
+            // --- QR Code detection (runs first; if found we skip other classifiers) ---
+            val qrResult = QrCodeDetector.detect(bitmap)
+            if (qrResult != null) {
+                return ScreenshotAnalysis(
+                    rawText = text.raw,
+                    filteredText = text.filtered,
+                    subCategory = qrResult.subLabel,
+                    objectSource = ObjectSource.Ocr,
+                    description = qrResult.description,
+                )
+            }
+
             val detected = ObjectResolver.fromText(text.filtered)
                 ?: if (ObjectResolver.needsImageModel(text.filtered)) classifyImageRegion(bitmap, lines, tfHelper) else null
 
