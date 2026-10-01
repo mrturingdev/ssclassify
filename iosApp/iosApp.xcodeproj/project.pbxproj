@@ -12,6 +12,7 @@
 		AC00000000000000000000A1 /* RecentScreenshotsWidget.swift in Sources */ = {isa = PBXBuildFile; fileRef = AC00000000000000000000B1 /* RecentScreenshotsWidget.swift */; };
 		AC00000000000000000000A2 /* ScreenshotLibrary.swift in Sources */ = {isa = PBXBuildFile; fileRef = AC00000000000000000000B2 /* ScreenshotLibrary.swift */; };
 		AC00000000000000000000A3 /* RecentScreenshotsWidget.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = AC00000000000000000000B5 /* RecentScreenshotsWidget.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+		AB00000000000000000000A3 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = AB00000000000000000000B7 /* Assets.xcassets */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -50,6 +51,7 @@
 		AC00000000000000000000B3 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		AC00000000000000000000B4 /* RecentScreenshotsWidget.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = RecentScreenshotsWidget.entitlements; sourceTree = "<group>"; };
 		AC00000000000000000000B5 /* RecentScreenshotsWidget.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = RecentScreenshotsWidget.appex; sourceTree = BUILT_PRODUCTS_DIR; };
+		AB00000000000000000000B7 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -94,6 +96,7 @@
 			children = (
 				AB00000000000000000000B1 /* iOSApp.swift */,
 				AB00000000000000000000B2 /* ContentView.swift */,
+				AB00000000000000000000B7 /* Assets.xcassets */,
 				AB00000000000000000000B3 /* Info.plist */,
 			);
 			path = iosApp;
@@ -201,6 +204,7 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				AB00000000000000000000A3 /* Assets.xcassets in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -320,6 +324,7 @@
 		AB00000000000000000000F4 /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
@@ -351,6 +356,7 @@
 		AB00000000000000000000F5 /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
