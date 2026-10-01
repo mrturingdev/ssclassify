@@ -13,6 +13,8 @@
 		AC00000000000000000000A2 /* ScreenshotLibrary.swift in Sources */ = {isa = PBXBuildFile; fileRef = AC00000000000000000000B2 /* ScreenshotLibrary.swift */; };
 		AC00000000000000000000A3 /* RecentScreenshotsWidget.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = AC00000000000000000000B5 /* RecentScreenshotsWidget.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 		AB00000000000000000000A3 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = AB00000000000000000000B7 /* Assets.xcassets */; };
+		AC00000000000000000000A4 /* WidgetSnapshot.swift in Sources */ = {isa = PBXBuildFile; fileRef = AC00000000000000000000B6 /* WidgetSnapshot.swift */; };
+		AC00000000000000000000A5 /* CycleCategoryIntent.swift in Sources */ = {isa = PBXBuildFile; fileRef = AC00000000000000000000B7 /* CycleCategoryIntent.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -52,6 +54,9 @@
 		AC00000000000000000000B4 /* RecentScreenshotsWidget.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = RecentScreenshotsWidget.entitlements; sourceTree = "<group>"; };
 		AC00000000000000000000B5 /* RecentScreenshotsWidget.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = RecentScreenshotsWidget.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 		AB00000000000000000000B7 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
+		AB00000000000000000000B8 /* iosApp.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = iosApp.entitlements; sourceTree = "<group>"; };
+		AC00000000000000000000B6 /* WidgetSnapshot.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WidgetSnapshot.swift; sourceTree = "<group>"; };
+		AC00000000000000000000B7 /* CycleCategoryIntent.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CycleCategoryIntent.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -98,6 +103,7 @@
 				AB00000000000000000000B2 /* ContentView.swift */,
 				AB00000000000000000000B7 /* Assets.xcassets */,
 				AB00000000000000000000B3 /* Info.plist */,
+				AB00000000000000000000B8 /* iosApp.entitlements */,
 			);
 			path = iosApp;
 			sourceTree = "<group>";
@@ -116,6 +122,8 @@
 			children = (
 				AC00000000000000000000B1 /* RecentScreenshotsWidget.swift */,
 				AC00000000000000000000B2 /* ScreenshotLibrary.swift */,
+				AC00000000000000000000B6 /* WidgetSnapshot.swift */,
+				AC00000000000000000000B7 /* CycleCategoryIntent.swift */,
 				AC00000000000000000000B3 /* Info.plist */,
 				AC00000000000000000000B4 /* RecentScreenshotsWidget.entitlements */,
 			);
@@ -255,6 +263,8 @@
 			files = (
 				AC00000000000000000000A1 /* RecentScreenshotsWidget.swift in Sources */,
 				AC00000000000000000000A2 /* ScreenshotLibrary.swift in Sources */,
+				AC00000000000000000000A4 /* WidgetSnapshot.swift in Sources */,
+				AC00000000000000000000A5 /* CycleCategoryIntent.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -325,6 +335,7 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_ENTITLEMENTS = iosApp/iosApp.entitlements;
 				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
@@ -357,6 +368,7 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_ENTITLEMENTS = iosApp/iosApp.entitlements;
 				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;

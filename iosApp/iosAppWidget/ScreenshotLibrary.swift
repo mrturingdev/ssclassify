@@ -25,6 +25,14 @@ enum ScreenshotLibrary {
         return (0..<result.count).map { result.object(at: $0) }
     }
 
+    /// The assets for [ids] in that order, skipping any that were deleted since.
+    static func assets(ids: [String]) -> [PHAsset] {
+        let result = PHAsset.fetchAssets(withLocalIdentifiers: ids, options: nil)
+        var byId: [String: PHAsset] = [:]
+        result.enumerateObjects { asset, _, _ in byId[asset.localIdentifier] = asset }
+        return ids.compactMap { byId[$0] }
+    }
+
     /// A square-cropped thumbnail of [pixels] x [pixels], or nil when only iCloud has it.
     static func thumbnail(for asset: PHAsset, pixels: CGFloat) async -> UIImage? {
         let options = PHImageRequestOptions()
