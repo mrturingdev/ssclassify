@@ -27,7 +27,7 @@ kotlin {
 }
 
 android {
-    namespace = "com.agy.imagecategorizer.aicore"
+    namespace = "com.mrturingdev.ssclassify.aicore"
     compileSdk = libs.versions.android.compileSdk.get().toInt()
 
     defaultConfig {

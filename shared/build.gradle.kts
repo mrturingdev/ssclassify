@@ -22,7 +22,7 @@ kotlin {
         iosTarget.binaries.framework {
             baseName = "Shared"
             isStatic = true
-            binaryOption("bundleId", "com.agy.imagecategorizer.shared")
+            binaryOption("bundleId", "com.mrturingdev.ssclassify.shared")
         }
     }
 
@@ -63,13 +63,13 @@ kotlin {
 sqldelight {
     databases {
         create("ScreenshotDatabase") {
-            packageName.set("com.agy.imagecategorizer.db")
+            packageName.set("com.mrturingdev.ssclassify.db")
         }
     }
 }
 
 android {
-    namespace = "com.agy.imagecategorizer"
+    namespace = "com.mrturingdev.ssclassify"
     compileSdk = libs.versions.android.compileSdk.get().toInt()
 
     packaging {

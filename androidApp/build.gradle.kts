@@ -31,11 +31,11 @@ kotlin {
 }
 
 android {
-    namespace = "com.agy.imagecategorizer.android"
+    namespace = "com.mrturingdev.ssclassify.android"
     compileSdk = libs.versions.android.compileSdk.get().toInt()
 
     defaultConfig {
-        applicationId = "com.agy.imagecategorizer.android"
+        applicationId = "com.mrturingdev.ssclassify.android"
         minSdk = libs.versions.android.minSdk.get().toInt()
         targetSdk = libs.versions.android.targetSdk.get().toInt()
         versionCode = 1

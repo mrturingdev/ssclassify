@@ -412,7 +412,7 @@
 					"@executable_path/../../Frameworks",
 				);
 				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = com.agy.imagecategorizer.RecentScreenshotsWidget;
+				PRODUCT_BUNDLE_IDENTIFIER = com.mrturingdev.ssclassify.RecentScreenshotsWidget;
 				PRODUCT_NAME = RecentScreenshotsWidget;
 				SKIP_INSTALL = YES;
 				SWIFT_VERSION = 5.0;
@@ -435,7 +435,7 @@
 					"@executable_path/../../Frameworks",
 				);
 				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = com.agy.imagecategorizer.RecentScreenshotsWidget;
+				PRODUCT_BUNDLE_IDENTIFIER = com.mrturingdev.ssclassify.RecentScreenshotsWidget;
 				PRODUCT_NAME = RecentScreenshotsWidget;
 				SKIP_INSTALL = YES;
 				SWIFT_VERSION = 5.0;
