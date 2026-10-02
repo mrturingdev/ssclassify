@@ -1,57 +1,80 @@
 #!/usr/bin/env bash
 # ─────────────────────────────────────────────────────────────────────────────
 #  dev.sh  ·  S.S. Classify  ·  Developer TUI
-#  Arrow-key menu for Android / iOS builds, tests and installs.
+#  Arrow-key + mouse-click menu for Android / iOS builds, tests and installs.
 # ─────────────────────────────────────────────────────────────────────────────
 set -euo pipefail
 
-# ── Colours & symbols ─────────────────────────────────────────────────────────
-RESET="\033[0m";   BOLD="\033[1m";  DIM="\033[2m"
-RED="\033[31m";    GREEN="\033[32m"; CYAN="\033[36m"
-ARROW="▶";  TICK="✔";  CROSS="✘"
+# ── Colours ───────────────────────────────────────────────────────────────────
+RESET="\033[0m"; BOLD="\033[1m"; DIM="\033[2m"
+RED="\033[31m";  GREEN="\033[32m"; CYAN="\033[36m"
+ARROW="▶"; TICK="✔"; CROSS="✘"
 
-# ── Terminal helpers ──────────────────────────────────────────────────────────
-_clear()       { printf "\033[2J\033[H"; }
-_hide_cursor() { tput civis 2>/dev/null || true; }
-_show_cursor() { tput cnorm 2>/dev/null || true; }
+# ── Terminal ──────────────────────────────────────────────────────────────────
+_clear()         { printf "\033[2J\033[H"; }
+_hide_cursor()   { tput civis 2>/dev/null || true; }
+_show_cursor()   { tput cnorm 2>/dev/null || true; }
+_enable_mouse()  { printf '\033[?1000h'; }   # X10 basic mouse reporting
+_disable_mouse() { printf '\033[?1000l'; }
 
-trap '_show_cursor; echo ""' EXIT INT TERM
+_cleanup() { _disable_mouse; _show_cursor; printf "\n"; }
+trap '_cleanup' EXIT INT TERM
 
-# ── Key reader ────────────────────────────────────────────────────────────────
-# Reads one keypress and echoes a symbolic name:
-#   UP  DOWN  ENTER  HOME  END  ESC  <the character itself>
+# ── Global key state ──────────────────────────────────────────────────────────
+KEY=""          # symbolic key name after _read_key
+MOUSE_ROW=0     # 1-based terminal row when KEY=CLICK
+MOUSE_COL=0     # 1-based terminal col when KEY=CLICK
+
+# Read one keypress into KEY (and MOUSE_ROW/COL for clicks).
+# Called as a plain function — NOT via $() to keep stdin = terminal.
 _read_key() {
-  local ch seq1 seq2
-  IFS= read -rsn1 ch
+  KEY=""; MOUSE_ROW=0; MOUSE_COL=0
 
+  local ch
+  IFS= read -rsn1 ch   # block until one byte arrives
+
+  # Non-escape: return it as-is
   if [[ "$ch" != $'\x1b' ]]; then
-    printf '%s' "$ch"
+    KEY="$ch"
     return
   fi
 
-  # Could be a bare ESC or the start of an escape sequence.
-  IFS= read -rsn1 -t 0.15 seq1 2>/dev/null || { printf 'ESC'; return; }
+  # Escape: peek at next byte (150 ms timeout)
+  local s1
+  IFS= read -rsn1 -t 0.15 s1 2>/dev/null || { KEY="ESC"; return; }
 
-  if [[ "$seq1" == '[' ]]; then
-    IFS= read -rsn1 -t 0.15 seq2 2>/dev/null || { printf 'ESC'; return; }
-    case "$seq2" in
-      A) printf 'UP'   ;;
-      B) printf 'DOWN' ;;
-      C) printf 'RIGHT';;
-      D) printf 'LEFT' ;;
-      H) printf 'HOME' ;;
-      F) printf 'END'  ;;
-      *) printf 'ESC'  ;;
+  if [[ "$s1" == '[' ]]; then
+    local s2
+    IFS= read -rsn1 -t 0.15 s2 2>/dev/null || { KEY="ESC"; return; }
+    case "$s2" in
+      A) KEY="UP"    ;;
+      B) KEY="DOWN"  ;;
+      C) KEY="RIGHT" ;;
+      D) KEY="LEFT"  ;;
+      H) KEY="HOME"  ;;
+      F) KEY="END"   ;;
+      M) # X10 mouse event: 3 more bytes (button, col, row) each offset +32
+        local mb mc mr
+        IFS= read -rsn1 -t 0.15 mb 2>/dev/null || { KEY="ESC"; return; }
+        IFS= read -rsn1 -t 0.15 mc 2>/dev/null || { KEY="ESC"; return; }
+        IFS= read -rsn1 -t 0.15 mr 2>/dev/null || { KEY="ESC"; return; }
+        local btn=$(( $(printf '%d' "'$mb") - 32 ))
+        MOUSE_COL=$(( $(printf '%d' "'$mc") - 32 ))
+        MOUSE_ROW=$(( $(printf '%d' "'$mr") - 32 ))
+        [[ $btn -eq 0 ]] && KEY="CLICK" || KEY="MOUSE"
+        ;;
+      *) KEY="ESC" ;;
     esac
-  elif [[ "$seq1" == 'O' ]]; then
-    IFS= read -rsn1 -t 0.15 seq2 2>/dev/null || { printf 'ESC'; return; }
-    case "$seq2" in
-      H) printf 'HOME' ;;
-      F) printf 'END'  ;;
-      *) printf 'ESC'  ;;
+  elif [[ "$s1" == 'O' ]]; then
+    local s2
+    IFS= read -rsn1 -t 0.15 s2 2>/dev/null || { KEY="ESC"; return; }
+    case "$s2" in
+      H) KEY="HOME" ;;
+      F) KEY="END"  ;;
+      *) KEY="ESC"  ;;
     esac
   else
-    printf 'ESC'
+    KEY="ESC"
   fi
 }
 
@@ -63,24 +86,34 @@ _header() {
   printf "╔══════════════════════════════════════════════╗\n"
   printf "║   📱  S.S. Classify  ─  DevTools  🛠         ║\n"
   printf "╚══════════════════════════════════════════════╝${RESET}\n"
-  [[ -n "$subtitle" ]] && printf "  ${DIM}%s${RESET}\n" "$subtitle"
+  if [[ -n "$subtitle" ]]; then
+    printf "  ${DIM}%s${RESET}\n" "$subtitle"
+  fi
   printf "\n"
 }
 
-_footer() {
-  printf "\n${DIM}  [↑↓] Move   [Enter] Select   [q] Quit${RESET}\n"
-}
+_footer() { printf "\n${DIM}  [↑↓] Move   [Enter/Click] Select   [q] Quit${RESET}\n"; }
 
-# ── Arrow-key menu ────────────────────────────────────────────────────────────
-# Sets global MENU_RESULT to the 0-based index the user chose.
+# ── Arrow-key + click menu ────────────────────────────────────────────────────
+# Usage:  menu "Subtitle" "Item 0" "Item 1" …
+# Result: sets MENU_RESULT to the 0-based index chosen.
 MENU_RESULT=0
+
 menu() {
   local subtitle="$1"; shift
   local items=("$@")
   local count=${#items[@]}
   local cur=0
 
+  # How many rows does _header() print?
+  # 3 box lines + optional subtitle + 1 blank line
+  local hrows=4
+  [[ -n "$subtitle" ]] && hrows=5
+  # Menu items start at row (hrows + 1) in 1-based terminal coordinates.
+  local item_start=$(( hrows + 1 ))
+
   _hide_cursor
+  _enable_mouse
 
   while true; do
     _header "$subtitle"
@@ -93,26 +126,40 @@ menu() {
     done
     _footer
 
-    local key
-    key=$(_read_key)
+    _read_key   # sets KEY, MOUSE_ROW, MOUSE_COL
 
-    case "$key" in
-      UP|k)    (( cur > 0 ))           && (( cur-- )) ;;
-      DOWN|j)  (( cur < count - 1 ))   && (( cur++ )) ;;
-      HOME|g)  cur=0 ;;
-      END|G)   cur=$(( count - 1 )) ;;
-      ''|ENTER) break ;;
-      q|Q)     _show_cursor; exit 0 ;;
+    case "$KEY" in
+      UP|k)   (( cur > 0 ))          && (( cur-- )) ;;
+      DOWN|j) (( cur < count - 1 ))  && (( cur++ )) ;;
+      HOME|g) cur=0 ;;
+      END|G)  cur=$(( count - 1 )) ;;
+
+      CLICK)
+        # Map click row → item index (0-based)
+        local idx=$(( MOUSE_ROW - item_start ))
+        if (( idx >= 0 && idx < count )); then
+          MENU_RESULT=$idx
+          _disable_mouse
+          return
+        fi
+        ;;
+
+      ''|$'\n')   # Enter key
+        MENU_RESULT=$cur
+        _disable_mouse
+        return
+        ;;
+
+      q|Q) _cleanup; exit 0 ;;
     esac
   done
-
-  MENU_RESULT=$cur
 }
 
 # ── Command runner ────────────────────────────────────────────────────────────
 run_cmd() {
   local label="$1"; shift
   _clear
+  _show_cursor
   printf "${BOLD}${CYAN}┌─ %s${RESET}\n" "$label"
   printf "${DIM}  \$ %s${RESET}\n\n" "$*"
 
@@ -129,6 +176,7 @@ run_cmd() {
 
   printf "\n${DIM}  Press any key to return to the menu…${RESET}"
   IFS= read -rsn1
+  _hide_cursor
 }
 
 # ── iOS helpers ───────────────────────────────────────────────────────────────
@@ -140,9 +188,9 @@ _pick_sim() {
     | python3 -c "
 import sys, json
 devs = json.load(sys.stdin).get('devices', {})
-for runtime, devices in devs.items():
-    if 'iOS' in runtime:
-        for d in devices:
+for rt, ds in devs.items():
+    if 'iOS' in rt:
+        for d in ds:
             if d.get('isAvailable') and 'iPhone' in d.get('name',''):
                 print(d['name']); raise SystemExit
 " 2>/dev/null || echo "iPhone 16"
@@ -162,7 +210,7 @@ ios_build() {
 }
 
 ios_test() {
-  run_cmd "iOS Unit Tests" \
+  run_cmd "iOS Tests" \
     xcodebuild -project "$IOS_PROJECT" -scheme "$IOS_SCHEME" \
                -destination "platform=iOS Simulator,name=$(_pick_sim)" test
 }
@@ -172,7 +220,7 @@ android_menu() {
   local items=(
     "🟢  Build Debug APK"
     "🚀  Build Release APK"
-    "🧪  Run Unit Tests (shared)"
+    "🧪  Run Unit Tests"
     "📲  Install Debug on Device"
     "🔍  Lint Check"
     "← Back"
@@ -204,7 +252,7 @@ ios_menu() {
       0) ios_build "Debug" ;;
       1) ios_build "Release" ;;
       2) ios_test ;;
-      3) run_cmd "Build iOS Shared Framework" \
+      3) run_cmd "KMM iOS Framework" \
            ./gradlew :shared:linkDebugFrameworkIosSimulatorArm64 ;;
       4) return ;;
     esac
@@ -231,7 +279,7 @@ both_menu() {
   done
 }
 
-# ── Main menu ─────────────────────────────────────────────────────────────────
+# ── Main ──────────────────────────────────────────────────────────────────────
 main() {
   local items=(
     "🤖  Android"
@@ -245,7 +293,7 @@ main() {
       0) android_menu ;;
       1) ios_menu ;;
       2) both_menu ;;
-      3) _show_cursor; exit 0 ;;
+      3) _cleanup; exit 0 ;;
     esac
   done
 }
