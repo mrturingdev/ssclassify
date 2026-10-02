@@ -1,32 +1,54 @@
 import SwiftUI
 import WidgetKit
 
-// Tokens from .design/DESIGN.md and the app's grid card (ImageCard in HomeScreen.kt):
-// spacing.sm content padding, spacing.xs header gap, the app grid's 6pt tile gutter,
-// 10pt tile corners, Action Blue badges.
+// Colors from .design/DESIGN.md and the app's grid card (ImageCard in HomeScreen.kt).
 private enum Tokens {
-    static let padding: CGFloat = 12
-    static let headerGap: CGFloat = 8
-    static let gutter: CGFloat = 6
-    static let headerHeight: CGFloat = 28
-    static let tileRadius: CGFloat = 10
     static let canvas = Color(light: 0xF5F5F7, dark: 0x272729)
     static let placeholder = Color(light: 0xE0E0E0, dark: 0x2A2A2C)
     static let ink = Color(light: 0x1D1D1F, dark: 0xFFFFFF)
     static let actionBlue = Color(light: 0x0066CC, dark: 0x0066CC)
 }
 
-/// Columns per family; both families are square, so rows match.
-private func columns(for family: WidgetFamily) -> Int {
-    family == .systemSmall ? 2 : 3
-}
+/// Spacing per widget size. Large uses the design tokens (spacing.sm padding,
+/// spacing.xs header gap, the app grid's 6pt gutter) with square tiles like the app.
+/// Small trades a compact header and spacing.xs padding for four tiles that fill
+/// the grid. Tile corners stay concentric with the widget's (~21.6pt minus padding).
+private struct Layout {
+    let columns: Int
+    let padding: CGFloat
+    let headerHeight: CGFloat
+    let headerGap: CGFloat
+    let gutter: CGFloat
+    let titleSize: CGFloat
+    let buttonSize: CGFloat
+    let tileRadius: CGFloat
+    let squareTiles: Bool
 
-/// The largest square tile that fits a full columns x columns grid in [grid], the
-/// area below the header. Shared by the view and the thumbnail request.
-private func tileSide(inGrid grid: CGSize, columns: Int) -> CGFloat {
-    let gaps = CGFloat(columns - 1) * Tokens.gutter
-    let side = min(grid.width - gaps, grid.height - gaps) / CGFloat(columns)
-    return max(side.rounded(.down), 1)
+    static func of(_ family: WidgetFamily) -> Layout {
+        family == .systemSmall
+            ? Layout(columns: 2, padding: 8, headerHeight: 20, headerGap: 4, gutter: 4,
+                     titleSize: 12, buttonSize: 20, tileRadius: 12, squareTiles: false)
+            : Layout(columns: 3, padding: 12, headerHeight: 28, headerGap: 8, gutter: 6,
+                     titleSize: 14, buttonSize: 28, tileRadius: 10, squareTiles: true)
+    }
+
+    /// The area below the header in a widget of [size].
+    func gridArea(in size: CGSize) -> CGSize {
+        CGSize(width: size.width - 2 * padding, height: size.height - 2 * padding - headerHeight - headerGap)
+    }
+
+    /// One tile of a full columns x columns grid in [grid]; square on large.
+    /// Shared by the view and the thumbnail request.
+    func tileSize(inGrid grid: CGSize) -> CGSize {
+        let gaps = CGFloat(columns - 1) * gutter
+        let width = max(((grid.width - gaps) / CGFloat(columns)).rounded(.down), 1)
+        let height = max(((grid.height - gaps) / CGFloat(columns)).rounded(.down), 1)
+        if squareTiles {
+            let side = min(width, height)
+            return CGSize(width: side, height: side)
+        }
+        return CGSize(width: width, height: height)
+    }
 }
 
 struct RecentScreenshotsEntry: TimelineEntry {
@@ -66,14 +88,11 @@ struct RecentScreenshotsProvider: TimelineProvider {
             completion(Timeline(entries: [RecentScreenshotsEntry(date: now, content: .needsAccess)], policy: .after(next)))
             return
         }
-        let columns = columns(for: context.family)
-        let limit = columns * columns
+        let layout = Layout.of(context.family)
+        let limit = layout.columns * layout.columns
+        let tile = layout.tileSize(inGrid: layout.gridArea(in: context.displaySize))
         // ponytail: assumes a 3x display; 2x devices get a slightly larger image that the system downsamples
-        let gridArea = CGSize(
-            width: context.displaySize.width - 2 * Tokens.padding,
-            height: context.displaySize.height - 2 * Tokens.padding - Tokens.headerHeight - Tokens.headerGap
-        )
-        let pixels = tileSide(inGrid: gridArea, columns: columns) * 3
+        let pixels = max(tile.width, tile.height) * 3
 
         // The app's snapshot carries categories and captions; without one (never scanned)
         // fall back to the newest screenshots straight from Photos.
@@ -106,10 +125,11 @@ struct RecentScreenshotsProvider: TimelineProvider {
 struct RecentScreenshotsView: View {
     let entry: RecentScreenshotsEntry
     @Environment(\.widgetFamily) private var family
+    private var layout: Layout { Layout.of(family) }
 
     var body: some View {
         content
-            .padding(Tokens.padding)
+            .padding(layout.padding)
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
             .widgetBackground(Tokens.canvas)
             .widgetURL(widgetURL)
@@ -118,16 +138,16 @@ struct RecentScreenshotsView: View {
     @ViewBuilder private var content: some View {
         switch entry.content {
         case .placeholder:
-            VStack(spacing: Tokens.headerGap) {
+            VStack(spacing: layout.headerGap) {
                 header(title: "All", canCycle: false)
-                grid(Array(repeating: nil, count: columns(for: family) * columns(for: family)))
+                grid(Array(repeating: nil, count: layout.columns * layout.columns))
             }
         case .needsAccess:
             message("Open S.S. Classify to allow Photos access.")
         case .tiles(_, _, let tiles) where tiles.isEmpty:
             message("No screenshots yet.")
         case .tiles(let title, let canCycle, let tiles):
-            VStack(spacing: Tokens.headerGap) {
+            VStack(spacing: layout.headerGap) {
                 header(title: title, canCycle: canCycle)
                 grid(tiles.map { Optional($0) })
             }
@@ -147,13 +167,13 @@ struct RecentScreenshotsView: View {
             cycleButton(step: -1, symbol: "chevron.left", visible: canCycle)
             Spacer(minLength: 0)
             Text(title)
-                .font(.system(size: 14, weight: .semibold))
+                .font(.system(size: layout.titleSize, weight: .semibold))
                 .foregroundColor(Tokens.ink)
                 .lineLimit(1)
             Spacer(minLength: 0)
             cycleButton(step: 1, symbol: "chevron.right", visible: canCycle)
         }
-        .frame(height: Tokens.headerHeight)
+        .frame(height: layout.headerHeight)
     }
 
     @ViewBuilder
@@ -161,30 +181,29 @@ struct RecentScreenshotsView: View {
         if #available(iOSApplicationExtension 17.0, *), visible {
             Button(intent: CycleCategoryIntent(step: step)) {
                 Image(systemName: symbol)
-                    .font(.system(size: 13, weight: .semibold))
+                    .font(.system(size: layout.titleSize - 1, weight: .semibold))
                     .foregroundColor(Tokens.ink)
-                    .frame(width: 28, height: 28)
+                    .frame(width: layout.buttonSize, height: layout.buttonSize)
             }
             .buttonStyle(.plain)
         } else {
             // Keeps the title centered where buttons cannot exist.
-            Color.clear.frame(width: 28, height: 28)
+            Color.clear.frame(width: layout.buttonSize, height: layout.buttonSize)
         }
     }
 
-    /// Fixed square tiles sized so a full grid always fits below the header; fewer
-    /// tiles leave the rest of the grid empty rather than stretching.
+    /// Fixed-size tiles so a full grid always fits below the header; fewer tiles
+    /// leave the rest of the grid empty rather than stretching.
     private func grid(_ tiles: [RecentScreenshotsEntry.Tile?]) -> some View {
-        let count = columns(for: family)
-        return GeometryReader { proxy in
-            let side = tileSide(inGrid: proxy.size, columns: count)
-            let items = Array(repeating: GridItem(.fixed(side), spacing: Tokens.gutter), count: count)
-            LazyVGrid(columns: items, spacing: Tokens.gutter) {
+        GeometryReader { proxy in
+            let size = layout.tileSize(inGrid: proxy.size)
+            let items = Array(repeating: GridItem(.fixed(size.width), spacing: layout.gutter), count: layout.columns)
+            LazyVGrid(columns: items, spacing: layout.gutter) {
                 ForEach(tiles.indices, id: \.self) { index in
                     if let tile = tiles[index], family != .systemSmall {
-                        Link(destination: detailURL(tile.id)) { tileView(tile) }
+                        Link(destination: detailURL(tile.id)) { tileView(tile, size: size) }
                     } else {
-                        tileView(tiles[index])
+                        tileView(tiles[index], size: size)
                     }
                 }
             }
@@ -192,10 +211,10 @@ struct RecentScreenshotsView: View {
         }
     }
 
-    /// Mirrors ImageCard: square crop, bottom gradient, sub-category badge, two-line summary.
-    private func tileView(_ tile: RecentScreenshotsEntry.Tile?) -> some View {
+    /// Mirrors ImageCard: center crop, bottom gradient, sub-category badge, two-line summary.
+    private func tileView(_ tile: RecentScreenshotsEntry.Tile?, size: CGSize) -> some View {
         Tokens.placeholder
-            .aspectRatio(1, contentMode: .fit)
+            .frame(width: size.width, height: size.height)
             .overlay {
                 if let image = tile?.image {
                     Image(uiImage: image).resizable().scaledToFill()
@@ -206,16 +225,18 @@ struct RecentScreenshotsView: View {
                     caption(tile)
                 }
             }
-            .clipShape(RoundedRectangle(cornerRadius: Tokens.tileRadius, style: .continuous))
+            .clipShape(RoundedRectangle(cornerRadius: layout.tileRadius, style: .continuous))
     }
 
     private func caption(_ tile: RecentScreenshotsEntry.Tile) -> some View {
         VStack(alignment: .leading, spacing: 2) {
             if let badge = tile.badge {
+                // Wraps rather than truncating, so the whole sub-category always shows.
                 Text(badge)
                     .font(.system(size: 9, weight: .semibold))
                     .foregroundColor(.white)
-                    .lineLimit(1)
+                    .lineLimit(2)
+                    .fixedSize(horizontal: false, vertical: true)
                     .padding(.horizontal, 4)
                     .padding(.vertical, 1)
                     .background(RoundedRectangle(cornerRadius: 4).fill(Tokens.actionBlue.opacity(0.9)))
