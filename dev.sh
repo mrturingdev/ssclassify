@@ -1,7 +1,9 @@
 #!/usr/bin/env bash
 # ─────────────────────────────────────────────────────────────────────────────
 #  dev.sh  ·  S.S. Classify  ·  Developer TUI
-#  Arrow-key + mouse-click menu.  Device/simulator picker when >1 is available.
+#  Arrow-key + mouse-click menu.
+#  Device/simulator picker when >1 is available.
+#  Test Suite runner: list each test case, run multiple, filter, or all.
 # ─────────────────────────────────────────────────────────────────────────────
 set -euo pipefail
 
@@ -25,7 +27,7 @@ KEY=""; MOUSE_ROW=0; MOUSE_COL=0
 
 _read_key() {
   KEY=""; MOUSE_ROW=0; MOUSE_COL=0
-  local ch s1 s2
+  local ch s1 s2 s3
   IFS= read -rsn1 ch
   if [[ "$ch" != $'\x1b' ]]; then KEY="$ch"; return; fi
 
@@ -33,12 +35,20 @@ _read_key() {
   if [[ "$s1" == '[' ]]; then
     IFS= read -rsn1 -t 0.15 s2 2>/dev/null || { KEY="ESC"; return; }
     case "$s2" in
-      A) KEY="UP"    ;;
-      B) KEY="DOWN"  ;;
-      C) KEY="RIGHT" ;;
-      D) KEY="LEFT"  ;;
-      H) KEY="HOME"  ;;
-      F) KEY="END"   ;;
+      A) KEY="UP"       ;;
+      B) KEY="DOWN"     ;;
+      C) KEY="RIGHT"    ;;
+      D) KEY="LEFT"     ;;
+      H) KEY="HOME"     ;;
+      F) KEY="END"      ;;
+      5)
+        IFS= read -rsn1 -t 0.15 s3 2>/dev/null || true
+        KEY="PAGEUP"
+        ;;
+      6)
+        IFS= read -rsn1 -t 0.15 s3 2>/dev/null || true
+        KEY="PAGEDOWN"
+        ;;
       M) # X10 mouse: 3 bytes (button, col, row each +32)
         local mb mc mr
         IFS= read -rsn1 -t 0.15 mb 2>/dev/null || { KEY="ESC"; return; }
@@ -68,66 +78,162 @@ _header() {
   printf "\n"
 }
 
-# ── Single-select menu ────────────────────────────────────────────────────────
+# ── Single-select menu (with scrollable viewport) ─────────────────────────────
 # menu "Subtitle" "item0" "item1" …  → sets MENU_RESULT (0-based index)
 MENU_RESULT=0
 
 menu() {
   local sub="$1"; shift
   local items=("$@")
-  local count=${#items[@]} cur=0
-  local hrows=4; [[ -n "$sub" ]] && hrows=5
-  local item_start=$(( hrows + 1 ))
+  local count=${#items[@]}
+  if (( count == 0 )); then MENU_RESULT=0; return 0; fi
+
+  local cur=0
+  local term_lines
+  term_lines=$(tput lines 2>/dev/null || echo 24)
+  local window_size=$(( term_lines - 10 ))
+  (( window_size < 8 )) && window_size=8
+  (( window_size > 14 )) && window_size=14
+
+  local window_start=0
 
   _hide_cursor; _enable_mouse
   while true; do
+    if (( cur < window_start )); then
+      window_start=$cur
+    elif (( cur >= window_start + window_size )); then
+      window_start=$(( cur - window_size + 1 ))
+    fi
+    local window_end=$(( window_start + window_size ))
+    (( window_end > count )) && window_end=$count
+    local visible_count=$(( window_end - window_start ))
+
     _header "$sub"
-    for i in "${!items[@]}"; do
-      if (( i == cur )); then
-        printf "  ${BOLD}${CYAN} ${ARROW} ${items[$i]}${RESET}\n"
+    if (( count > window_size )); then
+      printf "  ${DIM}Showing %d-%d of %d${RESET}\n" "$(( window_start + 1 ))" "$window_end" "$count"
+      if (( window_start > 0 )); then
+        printf "  ${CYAN}▲ (%d more above)${RESET}\n" "$window_start"
       else
-        printf "  ${DIM}   ${items[$i]}${RESET}\n"
+        printf "  ${DIM}─ (top of list) ───────────────────────────────────${RESET}\n"
+      fi
+    fi
+
+    local hrows=4; [[ -n "$sub" ]] && hrows=5
+    local item_start=$(( hrows + 1 ))
+    if (( count > window_size )); then
+      item_start=$(( hrows + 3 ))
+    fi
+
+    for (( v=0; v < visible_count; v++ )); do
+      local i=$(( window_start + v ))
+      if (( i == cur )); then
+        printf "  ${BOLD}${CYAN} ${ARROW} %s${RESET}\n" "${items[$i]}"
+      else
+        printf "  ${DIM}   %s${RESET}\n" "${items[$i]}"
       fi
     done
+
+    if (( count > window_size )); then
+      local remaining_below=$(( count - window_end ))
+      if (( remaining_below > 0 )); then
+        printf "  ${CYAN}▼ (%d more below)${RESET}\n" "$remaining_below"
+      else
+        printf "  ${DIM}─ (end of list) ───────────────────────────────────${RESET}\n"
+      fi
+    fi
+
     printf "\n${DIM}  [↑↓] Move   [Enter/Click] Select   [q] Quit${RESET}\n"
 
     _read_key
     case "$KEY" in
-      UP|k)   (( cur > 0 ))          && (( cur-- )) ;;
-      DOWN|j) (( cur < count - 1 ))  && (( cur++ )) ;;
-      HOME|g) cur=0 ;;
+      UP|k)   (( cur > 0 )) && (( cur-- )) ;;
+      DOWN|j) (( cur < count - 1 )) && (( cur++ )) ;;
+      PAGEUP|b) cur=$(( cur > window_size ? cur - window_size : 0 )) ;;
+      PAGEDOWN|f) cur=$(( cur + window_size < count ? cur + window_size : count - 1 )) ;;
+      HOME|g) cur=0; window_start=0 ;;
       END|G)  cur=$(( count - 1 )) ;;
       CLICK)
-        local idx=$(( MOUSE_ROW - item_start ))
-        if (( idx >= 0 && idx < count )); then
-          MENU_RESULT=$idx; _disable_mouse; return
-        fi ;;
+        if (( count > window_size )); then
+          if [[ $MOUSE_ROW -eq $(( item_start - 1 )) ]]; then
+            cur=$(( cur > window_size ? cur - window_size : 0 ))
+          elif [[ $MOUSE_ROW -eq $(( item_start + visible_count )) ]]; then
+            cur=$(( cur + window_size < count ? cur + window_size : count - 1 ))
+          else
+            local v=$(( MOUSE_ROW - item_start ))
+            if (( v >= 0 && v < visible_count )); then
+              MENU_RESULT=$(( window_start + v ))
+              _disable_mouse; return
+            fi
+          fi
+        else
+          local idx=$(( MOUSE_ROW - item_start ))
+          if (( idx >= 0 && idx < count )); then
+            MENU_RESULT=$idx; _disable_mouse; return
+          fi
+        fi
+        ;;
       ''|$'\n') MENU_RESULT=$cur; _disable_mouse; return ;;
       q|Q) _cleanup; exit 0 ;;
     esac
   done
 }
 
-# ── Multi-select menu ─────────────────────────────────────────────────────────
+# ── Multi-select menu (scrollable viewport, Select All/Clear/Invert) ──────────
 # multiselect "Subtitle" "item0" "item1" …
 # → sets MULTI_RESULT (space-separated 0-based indices of checked items)
-# Returns 1 if user cancelled (chose ← Cancel or 'q')
+# Returns 1 if user cancelled ('q' or ESC)
 MULTI_RESULT=""
 
 multiselect() {
   local sub="$1"; shift
   local items=("$@")
-  local count=${#items[@]} cur=0
-  local -a sel; for i in "${!items[@]}"; do sel[$i]=0; done
-  local hrows=4; [[ -n "$sub" ]] && hrows=5
-  # +1 for the "── Select ──" separator line above items
-  local item_start=$(( hrows + 2 ))
+  local count=${#items[@]}
+  if (( count == 0 )); then
+    _warn "No items to select."
+    MULTI_RESULT=""; return 1
+  fi
+
+  local cur=0
+  local -a sel
+  for i in "${!items[@]}"; do sel[$i]=0; done
+
+  local term_lines
+  term_lines=$(tput lines 2>/dev/null || echo 24)
+  local window_size=$(( term_lines - 12 ))
+  (( window_size < 8 )) && window_size=8
+  (( window_size > 14 )) && window_size=14
+
+  local window_start=0
 
   _hide_cursor; _enable_mouse
   while true; do
+    if (( cur < window_start )); then
+      window_start=$cur
+    elif (( cur >= window_start + window_size )); then
+      window_start=$(( cur - window_size + 1 ))
+    fi
+    local window_end=$(( window_start + window_size ))
+    (( window_end > count )) && window_end=$count
+    local visible_count=$(( window_end - window_start ))
+
+    local checked_count=0
+    for s in "${sel[@]}"; do (( s == 1 )) && (( checked_count++ )); done
+
     _header "$sub"
-    printf "  ${DIM}Space to toggle, Enter to confirm${RESET}\n\n"
-    for i in "${!items[@]}"; do
+    printf "  ${DIM}Showing %d-%d of %d  (Checked: ${BOLD}%d${RESET}${DIM}) | [a] All  [c] Clear  [i] Invert${RESET}\n" \
+      "$(( window_start + 1 ))" "$window_end" "$count" "$checked_count"
+
+    if (( window_start > 0 )); then
+      printf "  ${CYAN}▲ (%d more above)${RESET}\n" "$window_start"
+    else
+      printf "  ${DIM}─ (top of list) ───────────────────────────────────${RESET}\n"
+    fi
+
+    local hrows=4; [[ -n "$sub" ]] && hrows=5
+    local item_start=$(( hrows + 3 ))
+
+    for (( v=0; v < visible_count; v++ )); do
+      local i=$(( window_start + v ))
       local icon="${UNCHECK}"
       [[ ${sel[$i]} -eq 1 ]] && icon="${BOLD}${GREEN}${CHECK}${RESET}"
       if (( i == cur )); then
@@ -136,27 +242,79 @@ multiselect() {
         printf "  ${DIM}   [%b] %s${RESET}\n" "$icon" "${items[$i]}"
       fi
     done
-    printf "\n${DIM}  [↑↓] Move   [Space/Click] Toggle   [Enter] Confirm   [q] Quit${RESET}\n"
+
+    local remaining_below=$(( count - window_end ))
+    if (( remaining_below > 0 )); then
+      printf "  ${CYAN}▼ (%d more below)${RESET}\n" "$remaining_below"
+    else
+      printf "  ${DIM}─ (end of list) ───────────────────────────────────${RESET}\n"
+    fi
+
+    printf "\n${DIM}  [↑↓] Move   [Space/Click] Toggle   [Enter] Run/Confirm   [q] Cancel${RESET}\n"
 
     _read_key
     case "$KEY" in
-      UP|k)   (( cur > 0 ))          && (( cur-- )) ;;
-      DOWN|j) (( cur < count - 1 ))  && (( cur++ )) ;;
-      ' ')    [[ ${sel[$cur]} -eq 1 ]] && sel[$cur]=0 || sel[$cur]=1 ;;
+      UP|k)
+        (( cur > 0 )) && (( cur-- ))
+        ;;
+      DOWN|j)
+        (( cur < count - 1 )) && (( cur++ ))
+        ;;
+      PAGEUP|b)
+        cur=$(( cur > window_size ? cur - window_size : 0 ))
+        ;;
+      PAGEDOWN|f)
+        cur=$(( cur + window_size < count ? cur + window_size : count - 1 ))
+        ;;
+      HOME|g)
+        cur=0; window_start=0
+        ;;
+      END|G)
+        cur=$(( count - 1 ))
+        ;;
+      ' ')
+        [[ ${sel[$cur]} -eq 1 ]] && sel[$cur]=0 || sel[$cur]=1
+        ;;
+      a|A)
+        for i in "${!sel[@]}"; do sel[$i]=1; done
+        ;;
+      c|C)
+        for i in "${!sel[@]}"; do sel[$i]=0; done
+        ;;
+      i|I)
+        for i in "${!sel[@]}"; do
+          [[ ${sel[$i]} -eq 1 ]] && sel[$i]=0 || sel[$i]=1
+        done
+        ;;
       CLICK)
-        local idx=$(( MOUSE_ROW - item_start ))
-        if (( idx >= 0 && idx < count )); then
-          cur=$idx
-          [[ ${sel[$cur]} -eq 1 ]] && sel[$cur]=0 || sel[$cur]=1
-        fi ;;
+        if [[ $MOUSE_ROW -eq $(( item_start - 1 )) ]]; then
+          cur=$(( cur > window_size ? cur - window_size : 0 ))
+        elif [[ $MOUSE_ROW -eq $(( item_start + visible_count )) ]]; then
+          cur=$(( cur + window_size < count ? cur + window_size : count - 1 ))
+        else
+          local v=$(( MOUSE_ROW - item_start ))
+          if (( v >= 0 && v < visible_count )); then
+            local idx=$(( window_start + v ))
+            cur=$idx
+            [[ ${sel[$idx]} -eq 1 ]] && sel[$idx]=0 || sel[$idx]=1
+          fi
+        fi
+        ;;
       ''|$'\n')
+        # If no items explicitly checked, treat highlighted item as chosen
+        if (( checked_count == 0 )); then
+          sel[$cur]=1
+        fi
         MULTI_RESULT=""
         for i in "${!sel[@]}"; do
           [[ ${sel[$i]} -eq 1 ]] && MULTI_RESULT+="$i "
         done
-        MULTI_RESULT="${MULTI_RESULT% }"  # trim trailing space
-        _disable_mouse; return 0 ;;
-      q|Q) _disable_mouse; return 1 ;;
+        MULTI_RESULT="${MULTI_RESULT% }"
+        _disable_mouse; return 0
+        ;;
+      q|Q|ESC)
+        _disable_mouse; MULTI_RESULT=""; return 1
+        ;;
     esac
   done
 }
@@ -205,12 +363,11 @@ _android_devices() {
     }'
 }
 
-# Picker: sets ANDROID_SERIALS (array) — empty means cancelled
 ANDROID_SERIALS=()
 
 _pick_android_targets() {
   local prompt="${1:-Select Android target}"
-  local allow_multi="${2:-yes}"   # yes = multi-select, no = single
+  local allow_multi="${2:-yes}"
 
   local serials=() labels=()
   while IFS='|' read -r s l; do
@@ -228,7 +385,6 @@ _pick_android_targets() {
     ANDROID_SERIALS=("${serials[0]}"); return 0
   fi
 
-  # Multiple available
   if [[ "$allow_multi" == "yes" ]]; then
     multiselect "$prompt" "${labels[@]}" || { ANDROID_SERIALS=(); return 1; }
     if [[ -z "$MULTI_RESULT" ]]; then
@@ -239,7 +395,6 @@ _pick_android_targets() {
       ANDROID_SERIALS+=("${serials[$idx]}")
     done
   else
-    # Single-select + "All" option
     local menu_items=("All connected (${n})" "${labels[@]}" "← Cancel")
     menu "$prompt" "${menu_items[@]}"
     local r=$MENU_RESULT
@@ -257,9 +412,7 @@ _pick_android_targets() {
 #  iOS  helpers
 # ─────────────────────────────────────────────────────────────────────────────
 
-# Prints "dest_string|label" lines for simulators + physical devices
 _ios_destinations() {
-  # Simulators
   xcrun simctl list devices available --json 2>/dev/null | python3 -c "
 import sys, json, re
 devs = json.load(sys.stdin).get('devices', {})
@@ -277,13 +430,11 @@ for line in out[:12]:
     print(line)
 " 2>/dev/null
 
-  # Physical devices via xctrace (only iPhone/iPad, not Mac)
   xcrun xctrace list devices 2>/dev/null \
     | grep -v Simulator \
     | grep -E '\([0-9A-Fa-f-]{36}\)' \
     | grep -iE '(iPhone|iPad)' \
     | while IFS= read -r line; do
-        # "Device Name (OS version) (UDID)"
         udid=$(echo "$line" | grep -oE '[0-9A-Fa-f-]{36}' | tail -1)
         name=$(echo "$line" | sed 's/ ([^)]*) ([0-9A-Fa-f-]*)$//' | sed 's/^ *//')
         if [[ -n "$udid" && -n "$name" ]]; then
@@ -292,7 +443,6 @@ for line in out[:12]:
       done
 }
 
-# Picker: sets IOS_DESTINATION string for xcodebuild
 IOS_DESTINATION=""
 
 _pick_ios_destination() {
@@ -323,11 +473,219 @@ _pick_ios_destination() {
 }
 
 # ─────────────────────────────────────────────────────────────────────────────
-#  Build / test actions
+#  TEST SUITE DISCOVERY & RUNNERS
+# ─────────────────────────────────────────────────────────────────────────────
+
+# Outputs TSV: task \t class \t method \t filter \t module \t label
+_list_all_tests() {
+  python3 - << 'EOF'
+import os, re
+
+modules = [
+    ("shared", ":shared:testDebugUnitTest", "shared"),
+    ("aicore", ":aicore:testDebugUnitTest", "aicore"),
+    ("androidApp", ":androidApp:testDebugUnitTest", "androidApp")
+]
+
+for mod_name, task, path_prefix in modules:
+    for root, dirs, files in os.walk(path_prefix):
+        if '/build/' in root or '/.gradle/' in root: continue
+        for f in sorted(files):
+            if f.endswith('Test.kt') or f.endswith('Tests.kt'):
+                full_path = os.path.join(root, f)
+                with open(full_path, 'r', encoding='utf-8') as fh:
+                    content = fh.read()
+                cls_match = re.search(r'(?:class|object)\s+([a-zA-Z0-9_]+)', content)
+                cls_name = cls_match.group(1) if cls_match else f.replace('.kt', '')
+                pattern = r'@Test(?:\s*\(.*?\))?\s*(?:(?:suspend|override|open|internal|private)\s+)*fun\s+(?:`([^`]+)`|([a-zA-Z0-9_]+))'
+                for m in re.finditer(pattern, content):
+                    method_name = m.group(1) or m.group(2)
+                    filt = f"*{cls_name}.{method_name}*"
+                    lbl = f"[{mod_name}] {cls_name} ➔ {method_name}"
+                    print(f"{task}\t{cls_name}\t{method_name}\t{filt}\t{mod_name}\t{lbl}")
+EOF
+}
+
+# Outputs TSV: task \t class \t count \t filter \t module \t label
+_list_all_classes() {
+  python3 - << 'EOF'
+import os, re
+
+modules = [
+    ("shared", ":shared:testDebugUnitTest", "shared"),
+    ("aicore", ":aicore:testDebugUnitTest", "aicore"),
+    ("androidApp", ":androidApp:testDebugUnitTest", "androidApp")
+]
+
+class_data = {}
+
+for mod_name, task, path_prefix in modules:
+    for root, dirs, files in os.walk(path_prefix):
+        if '/build/' in root or '/.gradle/' in root: continue
+        for f in sorted(files):
+            if f.endswith('Test.kt') or f.endswith('Tests.kt'):
+                full_path = os.path.join(root, f)
+                with open(full_path, 'r', encoding='utf-8') as fh:
+                    content = fh.read()
+                cls_match = re.search(r'(?:class|object)\s+([a-zA-Z0-9_]+)', content)
+                cls_name = cls_match.group(1) if cls_match else f.replace('.kt', '')
+                pattern = r'@Test(?:\s*\(.*?\))?\s*(?:(?:suspend|override|open|internal|private)\s+)*fun\s+(?:`([^`]+)`|([a-zA-Z0-9_]+))'
+                methods = re.findall(pattern, content)
+                if methods:
+                    key = (task, cls_name, mod_name)
+                    class_data[key] = class_data.get(key, 0) + len(methods)
+
+for (task, cls_name, mod_name), count in sorted(class_data.items(), key=lambda x: (x[0][2], x[0][1])):
+    filt = f"*{cls_name}*"
+    lbl = f"[{mod_name}] {cls_name} ({count} tests)"
+    print(f"{task}\t{cls_name}\t{count}\t{filt}\t{mod_name}\t{lbl}")
+EOF
+}
+
+_run_all_tests() {
+  run_cmd "All Unit Tests (All Modules)" ./gradlew testDebugUnitTest
+}
+
+_pick_and_run_test_cases() {
+  local kw="${1:-}"
+  local tasks=() classes=() methods=() filters=() labels=()
+
+  while IFS=$'\t' read -r t c m f mod lbl; do
+    if [[ -n "$kw" ]]; then
+      local lower_kw lower_target
+      lower_kw=$(echo "$kw" | tr '[:upper:]' '[:lower:]')
+      lower_target=$(echo "$c $m $mod" | tr '[:upper:]' '[:lower:]')
+      [[ "$lower_target" != *"$lower_kw"* ]] && continue
+    fi
+    tasks+=("$t")
+    classes+=("$c")
+    methods+=("$m")
+    filters+=("$f")
+    labels+=("$lbl")
+  done < <(_list_all_tests)
+
+  local count=${#labels[@]}
+  if (( count == 0 )); then
+    if [[ -n "$kw" ]]; then
+      _warn "No test cases matched '$kw'."
+    else
+      _warn "No test cases found."
+    fi
+    return 1
+  fi
+
+  local title="Select Test Cases (${count})"
+  [[ -n "$kw" ]] && title="Tests matching '$kw' (${count})"
+
+  multiselect "$title" "${labels[@]}" || return
+
+  if [[ -z "$MULTI_RESULT" ]]; then
+    _warn "No test cases selected."
+    return
+  fi
+
+  declare -A task_filters
+  local sel_count=0
+  for idx in $MULTI_RESULT; do
+    local t="${tasks[$idx]}"
+    local f="${filters[$idx]}"
+    task_filters["$t"]+="$f "
+    (( sel_count++ ))
+  done
+
+  local cmd=(./gradlew)
+  for t in "${!task_filters[@]}"; do
+    cmd+=("$t")
+    for f in ${task_filters[$t]}; do
+      cmd+=("--tests" "$f")
+    done
+  done
+
+  run_cmd "Running Selected Tests (${sel_count} tests)" "${cmd[@]}"
+}
+
+_pick_and_run_test_classes() {
+  local tasks=() classes=() counts=() filters=() labels=()
+
+  while IFS=$'\t' read -r t c cnt f mod lbl; do
+    tasks+=("$t")
+    classes+=("$c")
+    counts+=("$cnt")
+    filters+=("$f")
+    labels+=("$lbl")
+  done < <(_list_all_classes)
+
+  local count=${#labels[@]}
+  if (( count == 0 )); then
+    _warn "No test suites found."
+    return 1
+  fi
+
+  multiselect "Select Test Suites (${count} classes)" "${labels[@]}" || return
+
+  if [[ -z "$MULTI_RESULT" ]]; then
+    _warn "No test suites selected."
+    return
+  fi
+
+  declare -A task_filters
+  local sel_count=0
+  for idx in $MULTI_RESULT; do
+    local t="${tasks[$idx]}"
+    local f="${filters[$idx]}"
+    task_filters["$t"]+="$f "
+    (( sel_count++ ))
+  done
+
+  local cmd=(./gradlew)
+  for t in "${!task_filters[@]}"; do
+    cmd+=("$t")
+    for f in ${task_filters[$t]}; do
+      cmd+=("--tests" "$f")
+    done
+  done
+
+  run_cmd "Running Selected Suites (${sel_count} suites)" "${cmd[@]}"
+}
+
+_filter_and_run_test_cases() {
+  _clear; _show_cursor
+  printf "${BOLD}${CYAN}┌─ Filter Test Cases${RESET}\n"
+  printf "${DIM}  Type keyword to match class or method name (e.g. Blank, QR, Ocr, Widget, Repo):${RESET}\n\n"
+  printf "  ${BOLD}Search:${RESET} "
+  local kw
+  read -r kw || return
+  _hide_cursor
+  [[ -z "$kw" ]] && return
+  _pick_and_run_test_cases "$kw"
+}
+
+test_suite_menu() {
+  local items=(
+    "🚀  Run All Tests (90 tests across all modules)"
+    "🎯  Select Individual Test Cases (90 tests)"
+    "📦  Select by Test Suite / Class (20 classes)"
+    "🔍  Filter Test Cases by Keyword..."
+    "← Back"
+  )
+  while true; do
+    menu "Test Suite Runner" "${items[@]}"
+    case $MENU_RESULT in
+      0) _run_all_tests ;;
+      1) _pick_and_run_test_cases "" ;;
+      2) _pick_and_run_test_classes ;;
+      3) _filter_and_run_test_cases ;;
+      4) return ;;
+    esac
+  done
+}
+
+# ─────────────────────────────────────────────────────────────────────────────
+#  Build / run actions
 # ─────────────────────────────────────────────────────────────────────────────
 
 android_build() {
-  local cfg="$1"  # Debug | Release
+  local cfg="$1"
   run_cmd "Android ${cfg} Build" ./gradlew ":androidApp:assemble${cfg}"
 }
 
@@ -337,10 +695,6 @@ android_install() {
     run_cmd "Install Debug → ${serial}" \
       env ANDROID_SERIAL="$serial" ./gradlew :androidApp:installDebug
   done
-}
-
-android_unit_test() {
-  run_cmd "Android Unit Tests" ./gradlew :shared:testDebugUnitTest
 }
 
 android_instrumented_test() {
@@ -369,13 +723,6 @@ ios_build() {
   fi
 }
 
-ios_test() {
-  _pick_ios_destination "Run tests on which simulator/device?" || return
-  run_cmd "iOS Tests → ${IOS_DESTINATION}" \
-    xcodebuild -project "$IOS_PROJECT" -scheme "$IOS_SCHEME" \
-               -destination "$IOS_DESTINATION" test
-}
-
 ios_framework() {
   run_cmd "Build KMM iOS Framework" \
     ./gradlew :shared:linkDebugFrameworkIosSimulatorArm64
@@ -389,7 +736,7 @@ android_menu() {
   local items=(
     "🟢  Build Debug APK"
     "🚀  Build Release APK"
-    "🧪  Unit Tests (JVM)"
+    "🧪  Unit Tests (Select / All)"
     "🔬  Instrumented Tests (device)"
     "📲  Install Debug on Device(s)"
     "🔍  Lint Check"
@@ -400,7 +747,7 @@ android_menu() {
     case $MENU_RESULT in
       0) android_build Debug ;;
       1) android_build Release ;;
-      2) android_unit_test ;;
+      2) test_suite_menu ;;
       3) android_instrumented_test ;;
       4) android_install ;;
       5) android_lint ;;
@@ -413,7 +760,7 @@ ios_menu() {
   local items=(
     "🟢  Build Debug (Simulator / Device)"
     "🚀  Build Release (Archive)"
-    "🧪  Run Tests"
+    "🧪  Shared Unit Tests (Select / All)"
     "🔗  Build KMM Shared Framework"
     "← Back"
   )
@@ -422,7 +769,7 @@ ios_menu() {
     case $MENU_RESULT in
       0) ios_build Debug ;;
       1) ios_build Release ;;
-      2) ios_test ;;
+      2) test_suite_menu ;;
       3) ios_framework ;;
       4) return ;;
     esac
@@ -431,7 +778,8 @@ ios_menu() {
 
 both_menu() {
   local items=(
-    "🧪  Run All Unit Tests"
+    "🚀  Run All Unit Tests"
+    "🧪  Select & Run Specific Tests..."
     "🟢  Build Both Debug"
     "🧹  Clean All"
     "← Back"
@@ -439,10 +787,11 @@ both_menu() {
   while true; do
     menu "Android + iOS" "${items[@]}"
     case $MENU_RESULT in
-      0) android_unit_test; ios_test ;;
-      1) android_build Debug; ios_build Debug ;;
-      2) run_cmd "Clean All" ./gradlew clean ;;
-      3) return ;;
+      0) _run_all_tests ;;
+      1) test_suite_menu ;;
+      2) android_build Debug; ios_build Debug ;;
+      3) run_cmd "Clean All" ./gradlew clean ;;
+      4) return ;;
     esac
   done
 }
@@ -455,6 +804,7 @@ main() {
     "🤖  Android"
     "🍎  iOS"
     "🔀  Android + iOS"
+    "🧪  Test Suite (Select / All)"
     "🚪  Quit"
   )
   while true; do
@@ -463,7 +813,8 @@ main() {
       0) android_menu ;;
       1) ios_menu ;;
       2) both_menu ;;
-      3) _cleanup; exit 0 ;;
+      3) test_suite_menu ;;
+      4) _cleanup; exit 0 ;;
     esac
   done
 }
