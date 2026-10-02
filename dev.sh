@@ -5,7 +5,7 @@
 #  Device/simulator picker when >1 is available.
 #  Test Suite runner: list each test case, run multiple, filter, or all.
 # ─────────────────────────────────────────────────────────────────────────────
-set -euo pipefail
+set -uo pipefail
 
 # ── Colours ───────────────────────────────────────────────────────────────────
 RESET="\033[0m"; BOLD="\033[1m"; DIM="\033[2m"
@@ -29,6 +29,11 @@ _read_key() {
   KEY=""; MOUSE_ROW=0; MOUSE_COL=0
   local ch s1 s2 s3
   IFS= read -rsn1 ch
+
+  if [[ -z "$ch" || "$ch" == $'\n' || "$ch" == $'\r' ]]; then
+    KEY="ENTER"
+    return
+  fi
   if [[ "$ch" != $'\x1b' ]]; then KEY="$ch"; return; fi
 
   IFS= read -rsn1 -t 0.15 s1 2>/dev/null || { KEY="ESC"; return; }
@@ -172,7 +177,7 @@ menu() {
           fi
         fi
         ;;
-      ''|$'\n') MENU_RESULT=$cur; _disable_mouse; return ;;
+      ENTER|''|$'\n'|$'\r') MENU_RESULT=$cur; _disable_mouse; return ;;
       q|Q) _cleanup; exit 0 ;;
     esac
   done
@@ -300,7 +305,7 @@ multiselect() {
           fi
         fi
         ;;
-      ''|$'\n')
+      ENTER|''|$'\n'|$'\r')
         # If no items explicitly checked, treat highlighted item as chosen
         if (( checked_count == 0 )); then
           sel[$cur]=1
@@ -584,20 +589,25 @@ _pick_and_run_test_cases() {
     return
   fi
 
-  declare -A task_filters
-  local sel_count=0
+  local -a unique_tasks=()
   for idx in $MULTI_RESULT; do
     local t="${tasks[$idx]}"
-    local f="${filters[$idx]}"
-    task_filters["$t"]+="$f "
-    (( sel_count++ ))
+    local found=0
+    for u in "${unique_tasks[@]}"; do
+      if [[ "$u" == "$t" ]]; then found=1; break; fi
+    done
+    [[ $found -eq 0 ]] && unique_tasks+=("$t")
   done
 
   local cmd=(./gradlew)
-  for t in "${!task_filters[@]}"; do
+  local sel_count=0
+  for t in "${unique_tasks[@]}"; do
     cmd+=("$t")
-    for f in ${task_filters[$t]}; do
-      cmd+=("--tests" "$f")
+    for idx in $MULTI_RESULT; do
+      if [[ "${tasks[$idx]}" == "$t" ]]; then
+        cmd+=("--tests" "${filters[$idx]}")
+        (( sel_count++ ))
+      fi
     done
   done
 
@@ -628,20 +638,25 @@ _pick_and_run_test_classes() {
     return
   fi
 
-  declare -A task_filters
-  local sel_count=0
+  local -a unique_tasks=()
   for idx in $MULTI_RESULT; do
     local t="${tasks[$idx]}"
-    local f="${filters[$idx]}"
-    task_filters["$t"]+="$f "
-    (( sel_count++ ))
+    local found=0
+    for u in "${unique_tasks[@]}"; do
+      if [[ "$u" == "$t" ]]; then found=1; break; fi
+    done
+    [[ $found -eq 0 ]] && unique_tasks+=("$t")
   done
 
   local cmd=(./gradlew)
-  for t in "${!task_filters[@]}"; do
+  local sel_count=0
+  for t in "${unique_tasks[@]}"; do
     cmd+=("$t")
-    for f in ${task_filters[$t]}; do
-      cmd+=("--tests" "$f")
+    for idx in $MULTI_RESULT; do
+      if [[ "${tasks[$idx]}" == "$t" ]]; then
+        cmd+=("--tests" "${filters[$idx]}")
+        (( sel_count++ ))
+      fi
     done
   done
 
@@ -819,4 +834,4 @@ main() {
   done
 }
 
-main
+[[ "${BASH_SOURCE[0]}" == "${0}" ]] && main
