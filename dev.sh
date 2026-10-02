@@ -125,7 +125,7 @@ run_cmd() {
 
 # ── iOS helpers ────────────────────────────────────────────────────────────────
 IOS_PROJECT="iosApp/iosApp.xcodeproj"
-IOS_SCHEME="iosApp"
+IOS_SCHEME="ImageCategorizer"
 
 # Pick the first available iPhone simulator
 _pick_simulator() {
