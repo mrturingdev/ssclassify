@@ -27,6 +27,7 @@ import androidx.compose.material.icons.rounded.Category
 import androidx.compose.material.icons.rounded.Check
 import androidx.compose.material.icons.rounded.ContentCopy
 import androidx.compose.material.icons.rounded.Delete
+import androidx.compose.material.icons.rounded.DataObject
 import androidx.compose.material.icons.rounded.Description
 import androidx.compose.material.icons.rounded.Folder
 import androidx.compose.material.icons.rounded.Fullscreen
@@ -92,6 +93,8 @@ fun ScreenshotDetailScreen(
     onOpenFullscreen: () -> Unit,
     onCategoryChange: (ImageCategory?) -> Unit,
     onDelete: () -> Unit = {},
+    /** Debug builds only: exports this screenshot's OCR lines as fixture JSON; null hides the action. */
+    onExportOcrLines: (() -> Unit)? = null,
     modifier: Modifier = Modifier,
 ) {
     val snackbarHostState = remember { SnackbarHostState() }
@@ -130,6 +133,11 @@ fun ScreenshotDetailScreen(
                     }
                 },
                 actions = {
+                    if (onExportOcrLines != null) {
+                        IconButton(onClick = onExportOcrLines) {
+                            Icon(Icons.Rounded.DataObject, contentDescription = "Export OCR lines")
+                        }
+                    }
                     IconButton(onClick = onOpenFullscreen) {
                         Icon(
                             Icons.Rounded.Fullscreen,

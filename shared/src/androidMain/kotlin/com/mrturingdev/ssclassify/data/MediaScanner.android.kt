@@ -304,26 +304,54 @@ actual class MediaScanner actual constructor() : ScreenshotSource {
         return parts.joinToString(" ").ifEmpty { null }
     }
 
-    /**
-     * Decodes close to full resolution for OCR: screenshot text needs its real
-     * pixel height (a 512 px thumbnail shrinks a 1080x2340 screen to 236 px wide).
-     * Downsamples by powers of two only above [OCR_MAX_SIDE].
-     */
-    private fun loadBitmap(context: Context, mediaUri: Uri): Bitmap? {
-        val resolver = context.contentResolver
-        val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
-        resolver.openInputStream(mediaUri)?.use { BitmapFactory.decodeStream(it, null, bounds) }
-        if (bounds.outWidth <= 0 || bounds.outHeight <= 0) return null
-        var sample = 1
-        while (maxOf(bounds.outWidth, bounds.outHeight) / (sample * 2) >= OCR_MAX_SIDE) sample *= 2
-        val options = BitmapFactory.Options().apply { inSampleSize = sample }
-        return resolver.openInputStream(mediaUri)?.use { BitmapFactory.decodeStream(it, null, options) }
-    }
-
     private companion object {
-        const val OCR_MAX_SIDE = 2048
         const val BLANK_ROW_TOLERANCE = 24
     }
+}
+
+private const val OCR_MAX_SIDE = 2048
+
+/**
+ * Decodes close to full resolution for OCR: screenshot text needs its real
+ * pixel height (a 512 px thumbnail shrinks a 1080x2340 screen to 236 px wide).
+ * Downsamples by powers of two only above [OCR_MAX_SIDE].
+ */
+private fun loadBitmap(context: Context, mediaUri: Uri): Bitmap? {
+    val resolver = context.contentResolver
+    val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
+    resolver.openInputStream(mediaUri)?.use { BitmapFactory.decodeStream(it, null, bounds) }
+    if (bounds.outWidth <= 0 || bounds.outHeight <= 0) return null
+    var sample = 1
+    while (maxOf(bounds.outWidth, bounds.outHeight) / (sample * 2) >= OCR_MAX_SIDE) sample *= 2
+    val options = BitmapFactory.Options().apply { inSampleSize = sample }
+    return resolver.openInputStream(mediaUri)?.use { BitmapFactory.decodeStream(it, null, options) }
+}
+
+/**
+ * Debug fixture export: one screenshot's OCR lines as JSON, exactly what
+ * [OcrTextProcessor.process] receives, so calibration tests can replay them
+ * without a device. Blocking; null when the image cannot be read.
+ */
+fun ocrLinesJson(context: Context, id: String): String? {
+    val bitmap = loadBitmap(context, Uri.parse(id)) ?: return null
+    val ocr = OcrHelper()
+    val lines = try {
+        ocr.recognizeLines(bitmap)
+    } finally {
+        ocr.close()
+    }
+    val array = org.json.JSONArray()
+    for (line in lines) {
+        array.put(
+            org.json.JSONObject()
+                .put("text", line.text)
+                .put("left", line.left.toDouble())
+                .put("top", line.top.toDouble())
+                .put("right", line.right.toDouble())
+                .put("bottom", line.bottom.toDouble()),
+        )
+    }
+    return org.json.JSONObject().put("lines", array).toString(2)
 }
 
 fun hasPhotoAccess(context: Context): Boolean {

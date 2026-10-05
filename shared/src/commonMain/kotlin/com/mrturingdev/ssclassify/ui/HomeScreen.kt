@@ -140,6 +140,8 @@ fun HomeScreen(
     /** A screenshot to open in the detail page, e.g. from a widget tap; null when none. */
     openDetailId: String? = null,
     onDetailOpened: () -> Unit = {},
+    /** Debug builds only: exports a screenshot's OCR lines as fixture JSON; null hides the action. */
+    onExportOcrLines: ((id: String) -> Unit)? = null,
 ) {
     var selected by rememberSaveable { mutableStateOf(ALL_KEY) }
     var selectedSubCategory by rememberSaveable { mutableStateOf<String?>(null) }
@@ -184,6 +186,7 @@ fun HomeScreen(
             thumbnailLoader = thumbnailLoader,
             onBack = { activeDetailId = null },
             onOpenFullscreen = { fullscreenImageId = activeDetailImage.id },
+            onExportOcrLines = onExportOcrLines?.let { export -> { export(activeDetailImage.id) } },
             onCategoryChange = { onCategoryChange(activeDetailImage.id, it) },
             onDelete = {
                 onDeleteScreenshots(listOf(activeDetailImage.id))

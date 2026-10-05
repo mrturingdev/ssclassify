@@ -4,6 +4,7 @@ import android.Manifest
 import android.appwidget.AppWidgetManager
 import android.content.ComponentName
 import android.content.Intent
+import android.content.pm.ApplicationInfo
 import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Bundle
@@ -16,10 +17,15 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.testTagsAsResourceId
 import androidx.core.content.ContextCompat
+import androidx.lifecycle.lifecycleScope
 import com.mrturingdev.ssclassify.App
 import com.mrturingdev.ssclassify.android.widget.RecentScreenshotsWidgetProvider
 import com.mrturingdev.ssclassify.data.initAndroid
+import com.mrturingdev.ssclassify.data.ocrLinesJson
 import com.mrturingdev.ssclassify.widget.DeepLinks
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 class MainActivity : ComponentActivity() {
 
@@ -50,7 +56,11 @@ class MainActivity : ComponentActivity() {
         setContent {
             // Exposes Compose test tags as resource ids so :classyBenchmark (UiAutomator) can find them.
             Box(Modifier.semantics { testTagsAsResourceId = true }) {
-                App(isPermissionGranted = permissionGranted, pinWidget = widgetPinner())
+                App(
+                    isPermissionGranted = permissionGranted,
+                    pinWidget = widgetPinner(),
+                    exportOcrLines = if (isDebuggable()) ::shareOcrLines else null,
+                )
             }
         }
     }
@@ -74,6 +84,20 @@ class MainActivity : ComponentActivity() {
         if (manager?.isRequestPinAppWidgetSupported != true) return null
         val provider = ComponentName(this, RecentScreenshotsWidgetProvider::class.java)
         return { manager.requestPinAppWidget(provider, null, null) }
+    }
+
+    private fun isDebuggable(): Boolean = applicationInfo.flags and ApplicationInfo.FLAG_DEBUGGABLE != 0
+
+    /** Re-runs OCR on one screenshot and shares its lines as JSON for calibration fixtures. */
+    private fun shareOcrLines(id: String) {
+        lifecycleScope.launch {
+            val json = withContext(Dispatchers.Default) { ocrLinesJson(this@MainActivity, id) } ?: return@launch
+            val send = Intent(Intent.ACTION_SEND)
+                .setType("text/plain")
+                .putExtra(Intent.EXTRA_SUBJECT, "ocr-lines.json")
+                .putExtra(Intent.EXTRA_TEXT, json)
+            startActivity(Intent.createChooser(send, "Export OCR lines"))
+        }
     }
 
     private fun hasPhotoPermission(): Boolean =

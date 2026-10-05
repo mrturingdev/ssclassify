@@ -57,7 +57,12 @@ private val DarkOnSelection = Color(0xFFD6E6FF)
  */
 @OptIn(ExperimentalComposeUiApi::class)
 @Composable
-fun App(isPermissionGranted: Boolean = true, pinWidget: (() -> Unit)? = null) {
+fun App(
+    isPermissionGranted: Boolean = true,
+    pinWidget: (() -> Unit)? = null,
+    /** Debug builds only: shares a screenshot's OCR lines as calibration fixture JSON; null hides the action. */
+    exportOcrLines: ((id: String) -> Unit)? = null,
+) {
     var themeMode by remember { mutableStateOf(loadThemeMode()) }
     val darkTheme = when (themeMode) {
         ThemeMode.System -> isSystemInDarkTheme()
@@ -186,6 +191,7 @@ fun App(isPermissionGranted: Boolean = true, pinWidget: (() -> Unit)? = null) {
                     scanner = scanner,
                     thumbnailLoader = loader,
                     onScan = ::triggerScan,
+                    onExportOcrLines = exportOcrLines,
                     query = query,
                     onQueryChange = { query = it },
                     searchResults = searchResults,
