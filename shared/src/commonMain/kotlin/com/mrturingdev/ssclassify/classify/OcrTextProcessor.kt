@@ -54,7 +54,7 @@ object OcrTextProcessor {
 
     /** Row text height over the median row height at which a row reads as a title / emphasized. Calibration knobs. */
     const val TITLE_RATIO = 1.6f
-    const val EMPHASIS_RATIO = 1.2f
+    const val EMPHASIS_RATIO = 1.1f
 
     /**
      * Focus rings as distances from the vertical middle: the middle 60% of the
@@ -70,6 +70,10 @@ object OcrTextProcessor {
     const val MIN_TITLE_WORDS = 2
     const val MIN_TITLE_CHARS = 8
 
+    /** A title is mostly words: at least this many letters, making up at least this share of its visible characters. Calibration knobs. */
+    const val MIN_TITLE_LETTERS = 4
+    const val TITLE_LETTER_SHARE = 0.6f
+
     /** One reading-order row: [level] 1 = title, 2 = emphasized, 3 = body; [ring] 0 = middle of the screen. */
     private class Row(val text: String, val size: Float, val ring: Int, var level: Int = 3)
 
@@ -84,9 +88,13 @@ object OcrTextProcessor {
         val focused = lines.filter {
             it.centerX in focusMargin..(1f - focusMargin) && it.centerY in focusMargin..(1f - focusMargin)
         }
-        // Line box height is the font size: the row's tallest line sets its size.
+        // Line box height is the font size. The row's wordiest line sets it, so an
+        // icon or like counter beside the text ("3,234", a lone glyph) can't inflate the row.
         val rows = readingOrderRows(focused)
-            .map { row -> Row(cleanLine(row.joinToString(" ") { it.text }), row.maxOf { it.height }, ring(row.first().centerY)) }
+            .map { row ->
+                val size = row.maxBy { line -> line.text.count { it.isLetter() } }.height
+                Row(cleanLine(row.joinToString(" ") { it.text }), size, ring(row.first().centerY))
+            }
             .filter { it.text.isNotEmpty() }
         val filtered = rows.joinToString("\n") { it.text }
         if (rows.isEmpty()) return OcrText(raw, filtered)
@@ -112,15 +120,30 @@ object OcrTextProcessor {
     }
 
     /**
-     * Solid title rows first, then solid emphasized rows; within a level the
-     * middle ring wins, then the larger font, then reading order. Null when no
-     * row is both prominent and solid, so callers fall back to their own digest.
+     * Solid, wordy title rows first, then emphasized ones; within a level the
+     * larger font wins, then reading order (app screens put their title at the
+     * top, so the middle does not get priority here). Rows in the outermost
+     * ring (banners, tab bars) only count when nothing inside does. Null when
+     * no row qualifies, so callers fall back to their own digest.
+     * Calibrated against the OcrFixturesTest screenshots.
      */
-    private fun pickTitle(rows: List<Row>): String? = (1..2).firstNotNullOfOrNull { level ->
-        // minWithOrNull keeps the first of equal rows, which is reading order.
-        rows.filter { it.level == level && isSolidTitle(it.text) }
-            .minWithOrNull(compareBy<Row> { it.ring }.thenByDescending { it.size })
-    }?.text
+    private fun pickTitle(rows: List<Row>): String? {
+        val candidates = rows.filter { isSolidTitle(it.text) && isWordy(it.text) }
+        val (inner, outer) = candidates.partition { it.ring < FOCUS_RINGS.size }
+        return sequenceOf(inner, outer).firstNotNullOfOrNull { pool ->
+            (1..2).firstNotNullOfOrNull { level ->
+                // maxByOrNull keeps the first of equal rows, which is reading order.
+                pool.filter { it.level == level }.maxByOrNull { it.size }
+            }
+        }?.text
+    }
+
+    /** Mostly letters: amounts, counters and codes ("NPR 2600.00", "59 4 3") are not titles. */
+    private fun isWordy(text: String): Boolean {
+        val letters = text.count { it.isLetter() }
+        val visible = text.count { !it.isWhitespace() }
+        return letters >= MIN_TITLE_LETTERS && letters >= visible * TITLE_LETTER_SHARE
+    }
 
     /**
      * Font size first: rows clearly larger than the screen's body text (the

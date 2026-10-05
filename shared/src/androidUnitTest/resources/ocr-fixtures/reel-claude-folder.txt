@@ -1,0 +1,68 @@
+# Scrubbed ML Kit OCR lines: left top right bottom text (normalized, top-left origin).
+# title: *
+0.011 0.807 0.037 0.820 9
+0.049 0.022 0.132 0.033 18:26
+0.145 0.097 0.354 0.114 -philipplackner
+0.108 0.114 0.367 0.130 ojeas Keep Watching
+0.123 0.138 0.246 0.150 V .claude
+0.140 0.154 0.153 0.165 v
+0.139 0.297 0.153 0.308 v
+0.173 0.313 0.181 0.325 >
+0.174 0.328 0.181 0.340 >
+0.173 0.344 0.181 0.355 >
+0.187 0.083 0.258 0.090 Fotuto
+0.173 0.393 0.181 0.404 >
+0.174 0.408 0.181 0.420 >
+0.142 0.283 0.319 0.292 > Ocommands
+0.211 0.155 0.273 0.168 agents
+0.173 0.472 0.181 0.483 >
+0.215 0.171 0.419 0.183 M bug-reviewer.md
+0.209 0.187 0.497 0.198 MI COnvention-reviewer.md
+0.202 0.205 0.433 0.213 M İsSue-validator.md
+0.174 0.505 0.181 0.514 >
+0.368 0.081 0.547 0.091 003Fnay-strett-f...
+0.215 0.219 0.454 0.230 M mutation-worker.md
+0.215 0.235 0.463 0.246 M security-reviewer.md
+0.202 0.252 0.413 0.262 M skip-checker.md
+0.202 0.266 0.396 0.278 M verify-audit.md
+0.174 0.362 0.567 0.373 > O android-compose-architecture
+0.210 0.297 0.252 0.309 skills
+0.173 0.378 0.569 0.389 > D android -compose-components
+0.244 0.313 0.453 0.326 android-background
+0.242 0.328 0.353 0.340 android-cli
+0.241 0.344 0.594 0.357 android-combined-test-coverage
+0.166 0.423 0.483 0.436 >D android-error-handling
+0.169 0.440 0.604 0.453 >D android-instrumentation-coverage
+0.239 0.393 0.437 0.405 android-data-layer
+0.239 0.408 0.403 0.420 android-di-koin
+0.182 0.456 0.527 0.469 > O android-integration-testing
+0.173 0.487 0.527 0.500 > android-jvm-test-coverage
+0.239 0.472 0.469 0.485 android-jacoco-setup
+0.202 0.505 0.514 0.514 O android-module-structure
+0.173 0.520 0.437 0.532 > Oandroid-navigation
+0.019 0.836 0.206 0.848 Project update re
+0.182 0.535 0.510 0.548 > Oandroid-presentation-mvi
+0.173 0.552 0.552 0.563 > Dandroid-preview-figma-verify
+0.173 0.566 0.430 0.579 > android-ui-testing
+0.173 0.584 0.416 0.595 > Oandroid-ui-verify
+0.160 0.598 0.451 0.610 >O android-unit-testing
+0.173 0.615 0.494 0.627 >android-version-catalog
+0.202 0.632 0.547 0.642 2architectuue-decision-record
+0.173 0.663 0.498 0.674 > D figma-to-android-vector
+0.181 0.673 0.606 0.700 > Okotin-coroutina qents
+0.162 0.693 0.357 0.705 >O kotlin-flows
+0.169 0.633 0.831 0.661 IEyoueworking with
+0.165 0.709 0.481 0.722 >O kotlin-mutation-testing
+0.169 0.725 0.402 0.738 >O speckit-analyze
+0.174 0.743 0.418 0.753 >Ospeckit-checklist
+0.174 0.758 0.387 0.769 > O speckit-clarify
+0.167 0.773 0.448 0.785 >O speckit-constitution
+0.183 0.790 0.440 0.801 > O speckit-git-commit
+0.103 0.904 0.308 0.919 Send message
+0.794 0.019 0.934 0.035 ll 28)
+0.724 0.080 0.831 0.092 Pixet 9 Pro
+0.333 0.824 0.750 0.856 2 Watch more
+0.785 0.105 0.994 0.128 +. :
+0.958 0.084 0.996 0.090 cac
+0.786 0.835 1.000 0.847 n upgrade available
+0.915 0.905 0.951 0.916 Ad

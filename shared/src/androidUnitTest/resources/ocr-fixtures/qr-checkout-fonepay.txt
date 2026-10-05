@@ -1,0 +1,24 @@
+# Scrubbed ML Kit OCR lines: left top right bottom text (normalized, top-left origin).
+# title: Scan to pay with Fonepay
+0.046 0.022 0.130 0.033 16:14
+0.144 0.065 0.599 0.083 2o eckout.paybridgenp.com
+0.078 0.137 0.477 0.153 < Back Abishekh
+0.105 0.231 0.500 0.245 < Other payment methods
+0.264 0.307 0.737 0.324 Scan to pay with Fonepay
+0.384 0.589 0.654 0.604 Waiting for scan...
+0.146 0.335 0.854 0.350 Open any mobile banking app and scan this QR
+0.351 0.619 0.650 0.629 OR refreshes in 2:54
+0.268 0.825 0.329 0.836 app
+0.366 0.650 0.681 0.663 Check payment status
+0.433 0.700 0.631 0.714 Save OR image
+0.307 0.757 0.691 0.766 OR PAY FROM THIS PHONE
+0.701 0.231 0.948 0.243 fone pay Rs. 699.00
+0.268 0.802 0.771 0.817 Open in your banking or wallet
+0.269 0.842 0.727 0.855 Pay from the app on this phone, no
+0.267 0.857 0.386 0.871 scanning
+0.757 0.140 0.794 0.150 EN
+0.255 0.937 0.705 0.950 cs_TestSession00000000000
+0.133 0.970 0.540 0.982 A Secured bv PavBridaeNP
+0.806 0.069 0.830 0.077 16
+0.619 0.970 0.707 0.982 Terms
+0.752 0.971 0.855 0.982 Privacv

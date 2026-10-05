@@ -1,0 +1,19 @@
+# Scrubbed ML Kit OCR lines: left top right bottom text (normalized, top-left origin).
+# title: Redemption successful
+0.046 0.021 0.127 0.034 12:29
+0.115 0.542 0.243 0.554 CTIA3P
+0.293 0.176 0.708 0.196 Redemption successful
+0.100 0.207 0.902 0.222 Please use the QR or voucher code at the counter
+0.215 0.230 0.786 0.246 before billing to claim your reward.
+0.116 0.609 0.361 0.620 Redeemed Points
+0.113 0.643 0.257 0.654 You Saved
+0.108 0.775 0.158 0.779 KOTHEYS
+0.758 0.019 0.932 0.036 .ll 64)
+0.221 0.812 0.612 0.826 VALID TILL: 0CT 18, 2026
+0.202 0.756 0.786 0.772 Kotheys Momo Pimbahal- Enjoy Your
+0.201 0.779 0.663 0.795 Chicken Kotheys Momo Now!
+0.355 0.906 0.644 0.919 VIEW VOUCHER
+0.881 0.070 0.916 0.085 X
+0.750 0.608 0.887 0.620 535 Points
+0.796 0.644 0.887 0.654 Rs. 220
+0.674 0.815 0.800 0.825 IN-STORE

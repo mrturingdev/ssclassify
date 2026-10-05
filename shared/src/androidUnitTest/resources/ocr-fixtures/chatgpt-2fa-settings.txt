@@ -1,0 +1,20 @@
+# Scrubbed ML Kit OCR lines: left top right bottom text (normalized, top-left origin).
+# title: Connect your authenticator app
+0.045 0.021 0.128 0.033 11:02
+0.144 0.064 0.710 0.083 23 chatgpt.com/#settings/S +
+0.134 0.127 0.300 0.140 ChatGPT
+0.062 0.164 0.204 0.181 Settings
+0.081 0.217 0.641 0.234 Connect your authenticator app
+0.390 0.591 0.624 0.606 Trouble scanning?
+0.081 0.661 0.491 0.674 Step 2: Enter your 6-digit code
+0.081 0.296 0.899 0.309 Step 1: Scan the QR code using your authenticator app, then
+0.081 0.316 0.551 0.329 enter the 6-digit code from the app.
+0.111 0.709 0.457 0.725 Enter your 6-digit code
+0.061 0.912 0.499 0.925 by requirig stronger sighin metods
+0.062 0.928 0.470 0.940 and applying stricter protections to
+0.812 0.066 0.831 0.080 24
+0.635 0.778 0.726 0.789 Cancel
+0.869 0.219 0.894 0.230 X
+0.870 0.219 0.894 0.229 X
+0.813 0.778 0.890 0.791 Verify
+0.819 0.911 0.931 0.923 Enroll >

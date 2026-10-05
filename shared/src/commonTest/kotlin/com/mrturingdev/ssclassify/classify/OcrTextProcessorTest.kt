@@ -149,11 +149,12 @@ class OcrTextProcessorTest {
     }
 
     @Test
-    fun titleIsTheSolidProminentRowNearestTheMiddle() {
+    fun titleIsTheLargestSolidWordyRowOutsideTheEdgeBand() {
         fun sized(text: String, centerY: Float, height: Float = 0.02f) =
             OcrLine(text, 0.1f, centerY - height / 2, 0.9f, centerY + height / 2)
         val lines = listOf(
-            sized("Bank of Kathmandu", centerY = 0.10f, height = 0.05f), // title-size, outer ring
+            sized("Bank of Kathmandu", centerY = 0.07f, height = 0.05f), // title-size, but in the edge band
+            sized("NPR 5,000.00", centerY = 0.30f, height = 0.06f), // largest, but an amount
             sized("PAY", centerY = 0.35f, height = 0.05f), // title-size but not solid
             sized("Transfer successful", centerY = 0.45f, height = 0.04f), // title-size, middle
             sized("Amount 5,000.00", centerY = 0.55f),

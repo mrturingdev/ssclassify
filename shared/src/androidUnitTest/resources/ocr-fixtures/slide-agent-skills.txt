@@ -1,0 +1,15 @@
+# Scrubbed ML Kit OCR lines: left top right bottom text (normalized, top-left origin).
+# title: Teach it repeatable skills | AGENT SKILLS
+0.106 0.412 0.263 0.420 AGENT SKILLS
+0.107 0.433 0.596 0.451 Teach it repeatable skills
+0.471 0.064 0.530 0.075 5/8
+0.107 0.461 0.786 0.472 Package proven workflows as skills theagent can reuse reliably:
+0.106 0.475 0.835 0.488 defined inputs, allowed tools, and a known-good sequence of steps;
+0.106 0.491 0.671 0.501 instead of re-reasoning every task from a blank slate.
+0.216 0.534 0.241 0.543 <)
+0.167 0.555 0.290 0.562 Code review
+0.429 0.554 0.551 0.563 Ticket triage
+0.708 0.555 0.804 0.564 Reporting
+0.909 0.060 0.948 0.077 X
+0.860 0.274 0.968 0.285 A Analytics
+0.869 0.282 0.944 0.294 Vidhýa

@@ -1,0 +1,33 @@
+# Scrubbed ML Kit OCR lines: left top right bottom text (normalized, top-left origin).
+# title: POV: You used Jev Al to find and score 700 leads in
+0.046 0.022 0.130 0.033 11:04
+0.067 0.545 0.154 0.555 Iused:
+0.235 0.083 0.393 0.090 pick the best message
+0.312 0.097 0.338 0.103 5,236
+0.244 0.097 0.257 0.102 521
+0.391 0.099 0.407 0.102 542
+0.066 0.683 0.209 0.694 #ai #sales
+0.230 0.228 0.765 0.237 POV: You used Jev Al to find and score 700 leads in
+0.440 0.237 0.559 0.248 40 seconds
+0.076 0.712 0.173 0.727 1 day ago
+0.501 0.099 0.516 0.102 218
+0.111 0.467 0.866 0.480 Comment "SALES" and I'll send you this system + the
+0.065 0.482 0.229 0.496 setup guide
+0.298 0.263 0.701 0.273 every lead -→ analyzed → scored by fit
+0.075 0.512 0.831 0.526 I gave it 700 leads and it ranked all of them in seconds.
+0.066 0.559 0.580 0.572 - Apollo to pull leads and all the info.
+0.269 0.287 0.730 0.297 bop leads → personal message → book calls
+0.168 0.830 0.231 0.842 Reply
+0.267 0.387 0.743 0.400 comment "LEADS" bo get this system
+0.065 0.575 0.639 0.588 - Claude to add them all to my own CRM.
+0.592 0.099 0.608 0.102 212
+0.067 0.621 0.565 0.634 It cost me 9 cents for the whole list.
+0.075 0.591 0.882 0.604 - Jev reads every lead against every message and scored.
+0.681 0.099 0.720 0.103 $o.0644
+0.168 0.789 0.302 0.800 Iloyd_sk 4h
+0.066 0.652 0.721 0.665 Comment "SALES" and I'|l DM you the system.
+0.245 0.857 0.455 0.870 View 1 more reply
+0.168 0.890 0.374 0.900 kamal_husaini 4h
+0.180 0.951 0.548 0.964 What do you think of this?
+0.766 0.950 0.810 0.962 GIF
+0.902 0.906 0.954 0.957 e 3

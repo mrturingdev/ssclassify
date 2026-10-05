@@ -1,0 +1,24 @@
+# Scrubbed ML Kit OCR lines: left top right bottom text (normalized, top-left origin).
+# title: Backend in 2026: Learn these 9 skills or
+0.049 0.021 0.129 0.033 11:43
+0.144 0.026 0.190 0.030 fenepeints
+0.037 0.257 0.942 0.278 Backend in 2026: Learn these 9 skills or
+0.033 0.286 0.361 0.310 get left behind
+0.035 0.347 0.494 0.367 1) REST + gRPC APls
+0.034 0.375 0.793 0.395 2) Modern Auth (Passkeys > JWT)
+0.034 0.404 0.599 0.427 3) SQL + NoSQL mastery
+0.034 0.434 0.617 0.456 4) Redis caching patterns
+0.050 0.461 0.691 0.485 5) Kafka-level event systems
+0.035 0.490 0.592 0.515 6) Async & reactive code
+0.034 0.521 0.760 0.540 7) Microservices + service mesh
+0.035 0.552 0.538 0.571 8) OWASP + zero trust
+0.057 0.579 0.747 0.603 9) OpenTelemetry observability
+0.175 0.842 0.401 0.855 coder_jetsetjoy
+0.175 0.860 0.543 0.873 J LUZ ROJA (Slowed) bxk
+0.603 0.852 0.694 0.862 Follow
+0.044 0.896 0.844 0.908 Backend in 2026: Learn these 9 skills or get left behind ..
+0.891 0.495 0.956 0.505 3,234
+0.911 0.570 0.934 0.578 16
+0.912 0.645 0.933 0.652 71
+0.893 0.719 0.956 0.728 5,764
+0.892 0.794 0.955 0.803 3,475

@@ -1,0 +1,29 @@
+# Scrubbed ML Kit OCR lines: left top right bottom text (normalized, top-left origin).
+# title: Payment successful
+0.046 0.023 0.130 0.033 16:15
+0.040 0.064 0.081 0.083 G
+0.144 0.061 0.829 0.084 2o eckout. paybridgenp.com + |16
+0.132 0.435 0.229 0.449 Paid to
+0.143 0.366 0.857 0.382 Fonepay has confirmed this payment. You can
+0.302 0.390 0.694 0.405 safely return to Abishekh.
+0.132 0.472 0.251 0.482 Amount
+0.133 0.506 0.244 0.516 Method
+0.131 0.540 0.215 0.550 Order
+0.132 0.574 0.279 0.585 Reference
+0.132 0.608 0.242 0.622 Receipt
+0.470 0.230 0.613 0.243 Abishekh
+0.268 0.332 0.730 0.355 Payment successful
+0.133 0.643 0.199 0.654 Date
+0.730 0.436 0.865 0.448 Abishekh
+0.718 0.472 0.869 0.482 Rs. 699.00
+0.673 0.540 0.868 0.551 #ORD-10001
+0.377 0.571 0.880 0.588 cs_TestSess ion0 00000000000
+0.743 0.505 0.866 0.520 Fonepay
+0.659 0.607 0.874 0.622 Download PDF
+0.204 0.697 0.584 0.711 Save with PayBridgeNP ID
+0.205 0.717 0.718 0.730 Faster checkout at PayBridgeNP shops
+0.307 0.777 0.689 0.789 Return to Abishekh →
+0.590 0.643 0.868 0.657 30 Sept 2026, 16:15
+0.306 0.820 0.696 0.832 Returning to the store in 16s
+0.239 0.855 0.763 0.868 A Payments verified by PayBridgeNP
+0.852 0.697 0.875 0.707 X

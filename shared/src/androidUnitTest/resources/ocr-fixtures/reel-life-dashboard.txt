@@ -1,0 +1,30 @@
+# Scrubbed ML Kit OCR lines: left top right bottom text (normalized, top-left origin).
+# title: 3. Builda life dashboard
+0.048 0.021 0.131 0.033 14:44
+0.035 0.062 0.087 0.084 +
+0.146 0.186 0.369 0.200 markpyvovarov
+0.041 0.323 0.792 0.351 3. Builda life dashboard
+0.067 0.577 0.289 0.590 Watch THIS:
+0.325 0.059 0.644 0.091 Instagam
+0.196 0.205 0.554 0.218 LONOWN, Asenssia addiction
+0.130 0.660 0.175 0.667 $1.2M
+0.137 0.683 0.167 0.685 Revenuet
+0.137 0.688 0.169 0.694 25K
+0.041 0.361 0.839 0.378 Can't improve what you can't track. Build a
+0.041 0.381 0.814 0.399 dashboard with your calendar, workouts,
+0.045 0.401 0.906 0.420 spending and goals in one place. This is a great
+0.041 0.421 0.451 0.441 starter project as well.
+0.169 0.609 0.656 0.624 INSANE DASHBOAPDS
+0.225 0.660 0.256 0.666 5OK
+0.317 0.655 0.342 0.658 Grgwth
+0.310 0.660 0.346 0.666 +15%
+0.394 0.660 0.442 0.667 $3.2M
+0.405 0.683 0.428 0.685 Growth
+0.402 0.688 0.434 0.694 +5%
+0.069 0.761 0.618 0.772 https://www.youtube.com/watch?v=z4AbijUCoKU
+0.031 0.868 0.594 0.891 Q376 59 14 403
+0.794 0.019 0.936 0.035 ll 86)
+0.755 0.195 0.845 0.206 Follow
+0.643 0.741 0.671 0.746 9:55
+0.895 0.255 0.934 0.265 4/5
+0.032 0.909 0.932 0.923 markpyvovarov the fastest way to get ahead of everyon... more
