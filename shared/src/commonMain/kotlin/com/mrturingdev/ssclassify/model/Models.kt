@@ -46,6 +46,8 @@ data class ImageRecord(
     val rawOcrText: String = ocrText,
     /** [ocrText] with outer rows moved below a middle-of-screen title: what the detail screen shows first. */
     val detailText: String = ocrText,
+    /** Names the screen in previews; null falls back to the OCR digest. */
+    val title: String? = null,
     /** Which engine named [subCategory]; null when nothing did. */
     val objectSource: ObjectSource? = null,
 ) {

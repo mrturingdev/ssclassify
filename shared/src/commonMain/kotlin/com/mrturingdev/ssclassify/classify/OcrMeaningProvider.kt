@@ -9,6 +9,7 @@ package com.mrturingdev.ssclassify.classify
  * @param subCategory Specific object, merchant, or topic identified in the text.
  * @param highlights Structured key-value pairs (Amounts, Dates, References, etc.).
  * @param isSensitive Whether credentials, OTPs, or financial secrets were identified.
+ * @param fromAiCore True when Gemini Nano on AICore produced this, false for rule-based or heuristic fallbacks.
  */
 data class ExtractedOcrMeaning(
     val headline: String,
@@ -17,6 +18,7 @@ data class ExtractedOcrMeaning(
     val subCategory: String? = null,
     val highlights: List<Pair<String, String>> = emptyList(),
     val isSensitive: Boolean = false,
+    val fromAiCore: Boolean = false,
 )
 
 /**

@@ -147,4 +147,34 @@ class OcrTextProcessorTest {
         val text = OcrTextProcessor.process(lines)
         assertEquals(text.filtered, text.detail)
     }
+
+    @Test
+    fun titleIsTheSolidProminentRowNearestTheMiddle() {
+        fun sized(text: String, centerY: Float, height: Float = 0.02f) =
+            OcrLine(text, 0.1f, centerY - height / 2, 0.9f, centerY + height / 2)
+        val lines = listOf(
+            sized("Bank of Kathmandu", centerY = 0.10f, height = 0.05f), // title-size, outer ring
+            sized("PAY", centerY = 0.35f, height = 0.05f), // title-size but not solid
+            sized("Transfer successful", centerY = 0.45f, height = 0.04f), // title-size, middle
+            sized("Amount 5,000.00", centerY = 0.55f),
+            sized("Reference 88123", centerY = 0.60f),
+            sized("From savings", centerY = 0.65f),
+            sized("Fee 0.00", centerY = 0.70f),
+        )
+        assertEquals("Transfer successful", OcrTextProcessor.process(lines).title)
+    }
+
+    @Test
+    fun titleFallsBackToEmphasizedThenNull() {
+        fun sized(text: String, centerY: Float, height: Float = 0.02f) =
+            OcrLine(text, 0.1f, centerY - height / 2, 0.9f, centerY + height / 2)
+        val emphasized = listOf(
+            sized("Gate 4", centerY = 0.40f),
+            sized("Boarding now", centerY = 0.45f, height = 0.025f),
+            sized("Seat 12A", centerY = 0.50f),
+        )
+        assertEquals("Boarding now", OcrTextProcessor.process(emphasized).title)
+        val flat = listOf(sized("Gate 4", centerY = 0.40f), sized("Seat 12A", centerY = 0.50f))
+        assertEquals(null, OcrTextProcessor.process(flat).title)
+    }
 }

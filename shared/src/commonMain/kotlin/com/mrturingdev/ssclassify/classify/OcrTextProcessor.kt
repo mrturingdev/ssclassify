@@ -25,13 +25,16 @@ data class OcrLine(
  *    widening outward, with headings marked as "# " (title) and "## "
  *    (emphasized) by font size and ALL CAPS;
  *  - [detail]: for reading. The filtered rows, but when the middle of the screen
- *    has a solid title the outer rows are secondary and move to the bottom.
+ *    has a solid title the outer rows are secondary and move to the bottom;
+ *  - [title]: the one row that best names the screen, or null when no row
+ *    stands out (see [OcrTextProcessor.pickTitle]).
  */
 data class OcrText(
     val raw: String,
     val filtered: String,
     val summary: String = filtered,
     val detail: String = filtered,
+    val title: String? = null,
 )
 
 /**
@@ -105,9 +108,19 @@ object OcrTextProcessor {
         } else {
             filtered
         }
-        return OcrText(raw, filtered, summary, detail)
+        return OcrText(raw, filtered, summary, detail, pickTitle(rows))
     }
 
+    /**
+     * Solid title rows first, then solid emphasized rows; within a level the
+     * middle ring wins, then the larger font, then reading order. Null when no
+     * row is both prominent and solid, so callers fall back to their own digest.
+     */
+    private fun pickTitle(rows: List<Row>): String? = (1..2).firstNotNullOfOrNull { level ->
+        // minWithOrNull keeps the first of equal rows, which is reading order.
+        rows.filter { it.level == level && isSolidTitle(it.text) }
+            .minWithOrNull(compareBy<Row> { it.ring }.thenByDescending { it.size })
+    }?.text
 
     /**
      * Font size first: rows clearly larger than the screen's body text (the

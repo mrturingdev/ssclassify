@@ -29,6 +29,8 @@ data class ScreenshotAnalysis(
     val filteredText: String = rawText,
     /** [filteredText] with outer rows moved below a middle-of-screen title, for reading. */
     val detailText: String = filteredText,
+    /** Names the screen for previews: the AICore headline when Gemini Nano ran, else [OcrText.title]. */
+    val title: String? = null,
     /** The main object, named from the text or, for image-heavy screenshots, by TensorFlow Lite. */
     val subCategory: String? = null,
     val objectSource: ObjectSource? = null,

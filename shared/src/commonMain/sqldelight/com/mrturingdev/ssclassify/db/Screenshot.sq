@@ -17,7 +17,9 @@ CREATE TABLE screenshot (
     -- ObjectSource name that produced sub_category (Ocr / TensorFlowLite).
     object_source TEXT,
     -- Filtered text with outer rows moved below a middle title (OcrText.detail); NULL before v5.
-    detail_text TEXT
+    detail_text TEXT,
+    -- Names the screen for previews: the AICore headline, else OcrText.title; NULL before v5 or when nothing stood out.
+    title TEXT
 );
 
 CREATE INDEX screenshot_date ON screenshot(date_millis DESC);

@@ -111,6 +111,7 @@ class ScreenshotRepository(
                         filtered_text = analysis.filteredText,
                         object_source = analysis.objectSource?.name,
                         detail_text = analysis.detailText,
+                        title = analysis.title,
                     ),
                 )
             }
@@ -152,6 +153,7 @@ class ScreenshotRepository(
             ocrText = filtered,
             rawOcrText = ocr_text,
             detailText = detail_text ?: filtered,
+            title = title,
             objectSource = ObjectSource.entries.firstOrNull { it.name == object_source },
         )
     }
@@ -173,6 +175,7 @@ class ScreenshotRepository(
         filtered_text: String?,
         val object_source: String?,
         val detail_text: String?,
+        val title: String?,
         override_category: String?,
     ) {
         // An override naming a category that no longer exists falls back to automatic, or maps from legacy names.

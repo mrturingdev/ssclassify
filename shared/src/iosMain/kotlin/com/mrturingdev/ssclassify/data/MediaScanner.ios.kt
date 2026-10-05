@@ -121,6 +121,7 @@ actual class MediaScanner actual constructor() : ScreenshotSource {
                     rawText = text.raw,
                     filteredText = text.filtered,
                     detailText = text.detail,
+                    title = text.title,
                     subCategory = detected?.label ?: meaning.subCategory,
                     objectSource = detected?.source ?: if (meaning.subCategory != null) ObjectSource.Ocr else null,
                     description = meaning.message.takeIf { it.isNotBlank() && it != "No text detected" },

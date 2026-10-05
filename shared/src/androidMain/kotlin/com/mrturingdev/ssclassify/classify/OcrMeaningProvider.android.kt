@@ -3,6 +3,7 @@ package com.mrturingdev.ssclassify.classify
 import com.mrturingdev.ssclassify.aicore.OcrMeaningExtractorFactory
 import com.mrturingdev.ssclassify.aicore.extractor.OcrMeaningExtractor
 import com.mrturingdev.ssclassify.aicore.model.EntityType
+import com.mrturingdev.ssclassify.aicore.model.InferenceSource
 import com.mrturingdev.ssclassify.data.AndroidApp
 
 /**
@@ -64,6 +65,7 @@ actual class OcrMeaningProvider actual constructor() {
             subCategory = subCategory,
             highlights = highlights,
             isSensitive = result.isSensitive,
+            fromAiCore = result.source == InferenceSource.AICORE_GEMINI_NANO,
         )
     }
 }

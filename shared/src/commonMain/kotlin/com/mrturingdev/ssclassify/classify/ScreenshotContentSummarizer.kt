@@ -44,8 +44,7 @@ object ScreenshotContentSummarizer {
         val byImportance = marked.sortedBy(::headingLevel).map(::headingText)
 
         // Check if there is an amount or headline line
-        val amountLine = lines.lastOrNull { priorityAmountRegex.containsMatchIn(it) }
-            ?: lines.firstOrNull { amountRegex.containsMatchIn(it) }
+        val amountLine = amountLine(lines)
         val titleLine = byImportance.firstOrNull { it.length in 4..60 && !amountRegex.containsMatchIn(it) } ?: byImportance.first()
 
         val digest = if (amountLine != null && amountLine != titleLine) {
@@ -54,8 +53,14 @@ object ScreenshotContentSummarizer {
             byImportance.take(2).joinToString(" • ")
         }
 
-        return if (digest.length > 90) digest.take(87).trimEnd() + "..." else digest
+        return clip(digest)
     }
+
+    private fun amountLine(lines: List<String>): String? =
+        lines.lastOrNull { priorityAmountRegex.containsMatchIn(it) }
+            ?: lines.firstOrNull { amountRegex.containsMatchIn(it) }
+
+    private fun clip(text: String): String = if (text.length > 90) text.take(87).trimEnd() + "..." else text
 
     /**
      * Extracts a company/business name from OCR text (especially for QR code screenshots).
@@ -125,18 +130,23 @@ object ScreenshotContentSummarizer {
     }
 
     /**
-     * Generates preview text for a screenshot.
-     * For QR code screenshots, if a company name is present in the OCR text,
-     * the company name is used as the preview text; otherwise falls back to the digest.
+     * Generates preview text for a screenshot, strongest signal first:
+     * the QR company name, then the stored [title] with the amount line
+     * ("Order confirmed • Total 42.00"), then the OCR digest.
      */
     fun previewText(
         ocrText: String,
         fallbackDescription: String? = null,
         isQr: Boolean = false,
+        title: String? = null,
     ): String {
         if (isQr) {
             val company = extractCompanyName(ocrText)
             if (company != null) return company
+        }
+        if (!title.isNullOrBlank()) {
+            val amount = amountLine(ocrText.lines().map { it.trim() }.filter { it.isNotBlank() })
+            return clip(if (amount != null && amount != title) "$title • $amount" else title)
         }
         return summarizeDigest(ocrText, fallbackDescription)
     }
@@ -151,6 +161,7 @@ object ScreenshotContentSummarizer {
             fallbackDescription = image.description,
             isQr = image.category == ImageCategory.QR ||
                 image.subCategory?.contains("qr", ignoreCase = true) == true,
+            title = image.title,
         )
 
     private val genericQrTokens = listOf(

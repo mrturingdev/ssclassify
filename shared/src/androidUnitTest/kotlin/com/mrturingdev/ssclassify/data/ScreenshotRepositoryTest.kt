@@ -225,7 +225,7 @@ class ScreenshotRepositoryTest {
             override suspend fun analyze(
                 assets: List<ScreenshotAsset>,
                 onResult: (ScreenshotAsset, ScreenshotAnalysis) -> Unit,
-            ) = assets.forEach { onResult(it, ScreenshotAnalysis(rawText = raw, filteredText = "Receipt Subtotal Total Tax", detailText = "Total Tax\nReceipt Subtotal")) }
+            ) = assets.forEach { onResult(it, ScreenshotAnalysis(rawText = raw, filteredText = "Receipt Subtotal Total Tax", detailText = "Total Tax\nReceipt Subtotal", title = "Receipt")) }
         }
         val repo = repository(source)
         repo.scan()
@@ -234,6 +234,7 @@ class ScreenshotRepositoryTest {
         assertEquals("Receipt Subtotal Total Tax", record.ocrText)
         assertEquals(raw, record.rawOcrText)
         assertEquals("Total Tax\nReceipt Subtotal", record.detailText)
+        assertEquals("Receipt", record.title)
         assertEquals(listOf("a"), repo.search("whatsapp").map { it.id }, "search still covers raw text")
     }
 

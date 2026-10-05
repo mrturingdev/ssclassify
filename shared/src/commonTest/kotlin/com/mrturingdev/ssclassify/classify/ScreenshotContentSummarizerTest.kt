@@ -149,4 +149,17 @@ class ScreenshotContentSummarizerTest {
         val preview = ScreenshotContentSummarizer.previewText(ocrText = ocr, isQr = true)
         assertTrue(preview.contains("Quick Payment System"))
     }
+
+    @Test
+    fun previewLeadsWithStoredTitleAndAmount() {
+        val ocr = "Inbox\nOrder confirmed\nTotal 42.00\nShips in 2 days"
+        assertEquals("Order confirmed • Total 42.00", ScreenshotContentSummarizer.previewText(ocr, title = "Order confirmed"))
+        assertEquals("Shipping update", ScreenshotContentSummarizer.previewText("Ships in 2 days", title = "Shipping update"))
+    }
+
+    @Test
+    fun qrCompanyNameBeatsStoredTitle() {
+        val ocr = "Scan & Pay\nPayee: Everest Bakery"
+        assertEquals("Everest Bakery", ScreenshotContentSummarizer.previewText(ocr, isQr = true, title = "Scan & Pay"))
+    }
 }
