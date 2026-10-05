@@ -2,6 +2,7 @@ package com.mrturingdev.ssclassify.classify
 
 import java.io.File
 import kotlin.test.Test
+import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
 /**
@@ -40,6 +41,22 @@ class OcrFixturesTest {
         val hits = report.count { it }
         println("title hits: $hits/${scored.size}")
         assertTrue(hits >= MIN_TITLE_HITS, "title hits dropped to $hits/${scored.size}, minimum $MIN_TITLE_HITS")
+    }
+
+    @Test
+    fun qrPreviewPrefersTheTitleOverAGuessedCompanyName() {
+        // A QR voucher: no merchant label, suffix or business word, so any company name would be a guess.
+        val text = OcrTextProcessor.process(fixtures().single { it.name == "voucher-redemption" }.lines)
+        val preview = ScreenshotContentSummarizer.previewText(text.filtered, isQr = true, title = text.title)
+        assertEquals("Redemption successful • Rs. 220", preview)
+    }
+
+    @Test
+    fun previewAppendsOnlyTheAmountNotItsMergedRow() {
+        // "< Other payment methods" and "fone pay Rs. 699.00" share a screen row.
+        val text = OcrTextProcessor.process(fixtures().single { it.name == "qr-checkout-fonepay" }.lines)
+        val preview = ScreenshotContentSummarizer.previewText(text.filtered, isQr = true, title = text.title)
+        assertEquals("Scan to pay with Fonepay • Rs. 699.00", preview)
     }
 
     private companion object {

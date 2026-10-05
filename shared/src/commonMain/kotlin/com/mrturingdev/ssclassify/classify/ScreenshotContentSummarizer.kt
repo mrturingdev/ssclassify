@@ -69,7 +69,7 @@ object ScreenshotContentSummarizer {
      * 2. Lines with corporate/business entity indicators like "Pvt. Ltd.", "Inc.", "Cafe", "Restaurant", "Mart", etc.
      * 3. Prominent title/heading lines on the QR standee/image that are not generic QR instructions.
      */
-    fun extractCompanyName(ocrText: String): String? {
+    fun extractCompanyName(ocrText: String, allowGuess: Boolean = true): String? {
         val lines = ocrText.lines()
             .map { it.removePrefix("## ").removePrefix("# ").trim() }
             .filter { it.isNotBlank() && !isNoiseLine(it) }
@@ -105,7 +105,8 @@ object ScreenshotContentSummarizer {
 
         // 3. Lines with business / establishment keywords (Cafe, Coffee, Restaurant, Mart, Pharmacy, etc.)
         val businessKeywordRegex = Regex(
-            """(?i)\b(?:cafe|coffee|restaurant|hotel|mart|supermarket|bakery|pharmacy|clinic|hospital|traders?|trading|enterprises?|services|technologies|solutions|boutique|kitchen|sweets|fitness|studio|labs|stationery|store|shop)\b"""
+            // Not inside a hyphenated compound: "IN-STORE" or "e-shop" describe, they don't name.
+            """(?i)(?<![-\w])(?:cafe|coffee|restaurant|hotel|mart|supermarket|bakery|pharmacy|clinic|hospital|traders?|trading|enterprises?|services|technologies|solutions|boutique|kitchen|sweets|fitness|studio|labs|stationery|store|shop)\b"""
         )
         for (line in lines) {
             if (businessKeywordRegex.containsMatchIn(line) && !isGenericQrLine(line)) {
@@ -116,7 +117,8 @@ object ScreenshotContentSummarizer {
             }
         }
 
-        // 4. First non-generic, non-instruction line on the QR code
+        // 4. First non-generic, non-instruction line on the QR code: a guess, so callers with a better signal skip it.
+        if (!allowGuess) return null
         for (line in lines) {
             if (!isGenericQrLine(line)) {
                 val candidate = cleanCompanyName(line)
@@ -131,8 +133,9 @@ object ScreenshotContentSummarizer {
 
     /**
      * Generates preview text for a screenshot, strongest signal first:
-     * the QR company name, then the stored [title] with the amount line
-     * ("Order confirmed • Total 42.00"), then the OCR digest.
+     * a QR company name backed by a label, legal suffix or business word,
+     * then the stored [title] with the amount ("Order confirmed • Total 42.00"),
+     * then a guessed QR company name (the first non-generic line), then the OCR digest.
      */
     fun previewText(
         ocrText: String,
@@ -141,12 +144,17 @@ object ScreenshotContentSummarizer {
         title: String? = null,
     ): String {
         if (isQr) {
-            val company = extractCompanyName(ocrText)
-            if (company != null) return company
+            extractCompanyName(ocrText, allowGuess = false)?.let { return it }
         }
         if (!title.isNullOrBlank()) {
-            val amount = amountLine(ocrText.lines().map { it.trim() }.filter { it.isNotBlank() })
-            return clip(if (amount != null && amount != title) "$title • $amount" else title)
+            // Just the amount phrase ("Total 42.00"), not its whole row, which can carry
+            // unrelated text merged from the same line of the screen.
+            val amount = (priorityAmountRegex.findAll(ocrText).lastOrNull() ?: amountRegex.find(ocrText))
+                ?.value?.trim()
+            return clip(if (amount != null && amount !in title) "$title • $amount" else title)
+        }
+        if (isQr) {
+            extractCompanyName(ocrText)?.let { return it }
         }
         return summarizeDigest(ocrText, fallbackDescription)
     }
@@ -187,11 +195,15 @@ object ScreenshotContentSummarizer {
         return false
     }
 
+    private val fieldLineRegex = Regex("""^[^:]{1,25}:\s""")
+
     private fun isValidCompanyName(name: String): Boolean {
         if (name.length < 3 || name.length > 60) return false
         if (isNoiseLine(name) || isGenericQrLine(name)) return false
         if (!name.any { it.isLetter() }) return false
         if (name.startsWith("http://") || name.startsWith("https://") || name.startsWith("www.")) return false
+        // "VALID TILL: OCT 18" is a field, not a name; merchant labels were already read in step 1.
+        if (fieldLineRegex.containsMatchIn(name)) return false
         if (amountRegex.containsMatchIn(name) && name.split(' ').size <= 2) return false
         return true
     }
