@@ -27,7 +27,7 @@ object ScreenshotContentSummarizer {
 
     /**
      * Generates a concise 1-2 line summary for preview cards and dialog headers.
-     * Accepts [OcrText.prioritized]: "# " / "## " font-size headings lead the
+     * Accepts [OcrText.summary]: "# " / "## " font-size headings lead the
      * title; plain text without markers keeps reading order.
      */
     fun summarizeDigest(ocrText: String, fallbackDescription: String? = null): String {

@@ -27,10 +27,10 @@ data class ExtractedOcrMeaning(
  * On iOS, this runs fast heuristic extraction.
  */
 expect class OcrMeaningProvider() {
-    /** [prioritizedText] is [OcrText.prioritized]: filtered rows with font-size headings. */
+    /** [summaryText] is [OcrText.summary]: filtered rows ranked for the title (screen focus, font size, ALL CAPS). */
     suspend fun extractMeaning(
         rawOcrText: String,
         filteredText: String = rawOcrText,
-        prioritizedText: String = filteredText,
+        summaryText: String = filteredText,
     ): ExtractedOcrMeaning
 }

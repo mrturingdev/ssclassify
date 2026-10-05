@@ -9,7 +9,7 @@ actual class OcrMeaningProvider actual constructor() {
     actual suspend fun extractMeaning(
         rawOcrText: String,
         filteredText: String,
-        prioritizedText: String,
+        summaryText: String,
     ): ExtractedOcrMeaning {
         val input = filteredText.ifBlank { rawOcrText }
         if (input.isBlank()) {
@@ -20,7 +20,7 @@ actual class OcrMeaningProvider actual constructor() {
         }
 
         // Font-size-ranked text leads the digest; highlights read the unmarked text.
-        val digest = ScreenshotContentSummarizer.summarizeDigest(prioritizedText.ifBlank { input })
+        val digest = ScreenshotContentSummarizer.summarizeDigest(summaryText.ifBlank { input })
         val highlights = ScreenshotContentSummarizer.extractHighlights(input)
 
         return ExtractedOcrMeaning(

@@ -222,7 +222,7 @@ actual class MediaScanner actual constructor() : ScreenshotSource {
             }
 
             // Extract semantic meaning via AICore
-            val meaning = meaningProvider.extractMeaning(text.raw, text.filtered, text.prioritized)
+            val meaning = meaningProvider.extractMeaning(text.raw, text.filtered, text.summary)
 
             val resolvedSubCategory = finalDetected?.label ?: meaning.subCategory
             val finalDescription = when (blankType) {

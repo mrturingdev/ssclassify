@@ -18,22 +18,31 @@ data class OcrLine(
 }
 
 /**
- * Raw OCR output next to its cleaned, reading-order version, plus [prioritized]:
- * the filtered rows ordered middle of the screen first, widening outward, with
- * font-size importance marked as Markdown headings ("# " title-size, "## "
- * emphasized). That is what the meaning summarizer reads.
+ * Four views of one OCR pass, each for a different reader:
+ *  - [raw]: every line, in the engine's order, untouched;
+ *  - [filtered]: the detected text, focus region only, cleaned, in reading order;
+ *  - [summary]: for finding the title. Rows ordered middle of the screen first,
+ *    widening outward, with headings marked as "# " (title) and "## "
+ *    (emphasized) by font size and ALL CAPS;
+ *  - [detail]: for reading. The filtered rows, but when the middle of the screen
+ *    has a solid title the outer rows are secondary and move to the bottom.
  */
-data class OcrText(val raw: String, val filtered: String, val prioritized: String = filtered)
+data class OcrText(
+    val raw: String,
+    val filtered: String,
+    val summary: String = filtered,
+    val detail: String = filtered,
+)
 
 /**
- * Turns one full-image OCR pass into:
- *  - raw: every line, in the engine's order, untouched;
- *  - filtered: only lines in the central focus region (status bar, nav bar and
- *    edge chrome sit in the outer margin), arranged into reading-order rows so
- *    split columns rejoin ("Total" + "508.50" -> "Total 508.50"), with
- *    meaningless tokens (symbol and garbage fragments) and pure status-bar lines removed.
+ * Turns one full-image OCR pass into [OcrText]. The filtered text keeps only
+ * lines in the central focus region (status bar, nav bar and edge chrome sit in
+ * the outer margin), arranged into reading-order rows so split columns rejoin
+ * ("Total" + "508.50" -> "Total 508.50"), with meaningless tokens (symbol and
+ * garbage fragments) and pure status-bar lines removed. Summary and detail
+ * reorder and mark those same rows; nothing is dropped.
  *
- * One OCR call serves both, instead of OCR-ing a center crop and the whole image separately.
+ * One OCR call serves all views, instead of OCR-ing a center crop and the whole image separately.
  */
 object OcrTextProcessor {
 
@@ -51,7 +60,11 @@ object OcrTextProcessor {
      */
     val FOCUS_RINGS = listOf(0.3f, 0.4f)
 
-    private class Row(val text: String, val size: Float, val centerY: Float)
+    /** Fewest letters for an ALL CAPS row to count as a heading, so "OK" or "PM" don't. Calibration knob. */
+    const val MIN_CAPS_LETTERS = 3
+
+    /** One reading-order row: [level] 1 = title, 2 = emphasized, 3 = body; [ring] 0 = middle of the screen. */
+    private class Row(val text: String, val size: Float, val ring: Int, var level: Int = 3)
 
     /** Clock, battery and signal tokens that status bars put into OCR. */
     internal val statusNoise = Regex(
@@ -66,34 +79,59 @@ object OcrTextProcessor {
         }
         // Line box height is the font size: the row's tallest line sets its size.
         val rows = readingOrderRows(focused)
-            .map { row -> Row(cleanLine(row.joinToString(" ") { it.text }), row.maxOf { it.height }, row.first().centerY) }
+            .map { row -> Row(cleanLine(row.joinToString(" ") { it.text }), row.maxOf { it.height }, ring(row.first().centerY)) }
             .filter { it.text.isNotEmpty() }
         val filtered = rows.joinToString("\n") { it.text }
-        return OcrText(raw, filtered, prioritize(rows))
-    }
+        if (rows.isEmpty()) return OcrText(raw, filtered)
+        assignLevels(rows)
 
-    /**
-     * Orders rows by focus ring, middle first (reading order within a ring), and
-     * marks rows whose font is clearly larger than the screen's body text (the
-     * median row height) as "# " or "## " headings. Nothing is dropped.
-     */
-    private fun prioritize(rows: List<Row>): String {
-        if (rows.isEmpty()) return ""
-        // Lower median: body text is the baseline, so headings never pull it up.
-        val median = rows.map { it.size }.sorted()[(rows.size - 1) / 2]
-        return rows.sortedBy(::ring).joinToString("\n") { row ->
-            when {
-                median <= 0f -> row.text
-                row.size >= median * TITLE_RATIO -> "# ${row.text}"
-                row.size >= median * EMPHASIS_RATIO -> "## ${row.text}"
+        // Summary: middle ring first, widening outward; reading order within a ring (stable sort).
+        val summary = rows.sortedBy { it.ring }.joinToString("\n") { row ->
+            when (row.level) {
+                1 -> "# ${row.text}"
+                2 -> "## ${row.text}"
                 else -> row.text
             }
         }
+        // Detail: a solid title in the middle makes the outer rows secondary, so they go to the bottom.
+        val hasMiddleTitle = rows.any { it.ring == 0 && it.level == 1 }
+        val detail = if (hasMiddleTitle) {
+            val (middle, outer) = rows.partition { it.ring == 0 }
+            (middle + outer).joinToString("\n") { it.text }
+        } else {
+            filtered
+        }
+        return OcrText(raw, filtered, summary, detail)
+    }
+
+    /**
+     * Font size first: rows clearly larger than the screen's body text (the
+     * median row height) become titles or emphasized. ALL CAPS then promotes a
+     * row one level, since caps is how screens shout without a bigger font.
+     */
+    private fun assignLevels(rows: List<Row>) {
+        // Lower median: body text is the baseline, so headings never pull it up.
+        val median = rows.map { it.size }.sorted()[(rows.size - 1) / 2]
+        for (row in rows) {
+            val bySize = when {
+                median <= 0f -> 3
+                row.size >= median * TITLE_RATIO -> 1
+                row.size >= median * EMPHASIS_RATIO -> 2
+                else -> 3
+            }
+            row.level = if (isAllCaps(row.text)) maxOf(1, bySize - 1) else bySize
+        }
+    }
+
+    /** Scripts without case (Devanagari, CJK) never count as caps. */
+    private fun isAllCaps(text: String): Boolean {
+        val letters = text.filter { it.isLetter() }
+        return letters.length >= MIN_CAPS_LETTERS && letters.all { it.isUpperCase() }
     }
 
     /** 0 for the middle ring, widening outward; rows past every ring share the last index. */
-    private fun ring(row: Row): Int {
-        val offset = kotlin.math.abs(row.centerY - 0.5f)
+    private fun ring(centerY: Float): Int {
+        val offset = kotlin.math.abs(centerY - 0.5f)
         return FOCUS_RINGS.indexOfFirst { offset <= it }.takeIf { it >= 0 } ?: FOCUS_RINGS.size
     }
 

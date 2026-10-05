@@ -34,10 +34,10 @@ actual class OcrMeaningProvider actual constructor() {
     actual suspend fun extractMeaning(
         rawOcrText: String,
         filteredText: String,
-        prioritizedText: String,
+        summaryText: String,
     ): ExtractedOcrMeaning {
         // Font-size-ranked focus text first; raw only when the focus region read nothing.
-        val input = prioritizedText.ifBlank { rawOcrText }
+        val input = summaryText.ifBlank { rawOcrText }
         if (input.isBlank()) {
             return ExtractedOcrMeaning(
                 headline = "No text detected",

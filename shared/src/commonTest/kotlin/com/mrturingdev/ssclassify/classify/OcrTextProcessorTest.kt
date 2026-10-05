@@ -85,11 +85,11 @@ class OcrTextProcessorTest {
         )
         val text = OcrTextProcessor.process(lines)
         assertEquals("Order confirmed\nTotal 42.00\nShips in 2 days\nContact support", text.filtered)
-        assertEquals("# Order confirmed\n## Total 42.00\nShips in 2 days\nContact support", text.prioritized)
+        assertEquals("# Order confirmed\n## Total 42.00\nShips in 2 days\nContact support", text.summary)
     }
 
     @Test
-    fun prioritizedReadsTheMiddleFirstThenWidensWithoutDroppingText() {
+    fun summaryReadsTheMiddleFirstThenWidensWithoutDroppingText() {
         fun sized(text: String, centerY: Float, height: Float) =
             OcrLine(text, 0.1f, centerY - height / 2, 0.9f, centerY + height / 2)
         val lines = listOf(
@@ -100,6 +100,37 @@ class OcrTextProcessorTest {
         )
         val text = OcrTextProcessor.process(lines)
         assertEquals("Starbucks\nOrdered at\nIced latte\nTotal 5.45", text.filtered)
-        assertEquals("Iced latte\nTotal 5.45\nOrdered at\n# Starbucks", text.prioritized)
+        assertEquals("Iced latte\nTotal 5.45\nOrdered at\n# Starbucks", text.summary)
+        // The only title is outside the middle, so detail keeps reading order.
+        assertEquals(text.filtered, text.detail)
+    }
+
+    @Test
+    fun allCapsPromotesARowOneLevel() {
+        val lines = listOf(
+            line("BOARDING PASS", centerY = 0.40f), // body size, caps -> emphasized
+            line("Gate 4", centerY = 0.45f),
+            line("Seat 12A", centerY = 0.50f),
+            OcrLine("DELAYED", 0.1f, 0.5375f, 0.9f, 0.5625f), // emphasized size, caps -> title
+            line("OK", centerY = 0.60f), // too few letters to count as caps
+        )
+        val text = OcrTextProcessor.process(lines)
+        assertEquals("## BOARDING PASS\nGate 4\nSeat 12A\n# DELAYED\nOK", text.summary)
+    }
+
+    @Test
+    fun detailMovesOuterRowsToTheBottomWhenTheMiddleHasATitle() {
+        fun sized(text: String, centerY: Float, height: Float = 0.02f) =
+            OcrLine(text, 0.1f, centerY - height / 2, 0.9f, centerY + height / 2)
+        val lines = listOf(
+            sized("Inbox", centerY = 0.10f), // outer
+            sized("Search mail", centerY = 0.15f), // outer
+            sized("Payment received", centerY = 0.40f, height = 0.05f), // middle title
+            sized("You got 120.00 from Sam", centerY = 0.50f),
+            sized("Reply", centerY = 0.85f), // outer
+        )
+        val text = OcrTextProcessor.process(lines)
+        assertEquals("Inbox\nSearch mail\nPayment received\nYou got 120.00 from Sam\nReply", text.filtered)
+        assertEquals("Payment received\nYou got 120.00 from Sam\nInbox\nSearch mail\nReply", text.detail)
     }
 }
