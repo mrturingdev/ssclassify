@@ -617,12 +617,10 @@ private fun CategoryBrowser(
                 detailId = null
                 onNavigateToDetails(id)
             },
-            onDelete = if (isCleanupMode || currentRecords.any { it.isCleanUpCandidate }) {
-                { id ->
-                    detailId = null
-                    onDeleteScreenshots(listOf(id))
-                }
-            } else null,
+            onDelete = { id ->
+                detailId = null
+                onDeleteScreenshots(listOf(id))
+            },
         )
     }
 }
@@ -916,7 +914,7 @@ internal fun ImageDetailDialog(
     onCategoryChange: (id: String, ImageCategory?) -> Unit,
     onOpenFullscreen: (id: String) -> Unit,
     onNavigateToDetails: (id: String) -> Unit,
-    onDelete: ((id: String) -> Unit)? = null,
+    onDelete: (id: String) -> Unit,
 ) {
     if (images.isEmpty()) return
 
@@ -940,7 +938,7 @@ internal fun ImageDetailDialog(
                 Button(
                     onClick = {
                         showDeleteConfirm = false
-                        onDelete?.invoke(currentImage.id)
+                        onDelete(currentImage.id)
                     },
                     colors = ButtonDefaults.buttonColors(
                         containerColor = MaterialTheme.colorScheme.error,
@@ -1035,14 +1033,12 @@ internal fun ImageDetailDialog(
         },
         dismissButton = {
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                if (onDelete != null) {
-                    IconButton(onClick = { showDeleteConfirm = true }) {
-                        Icon(
-                            Icons.Rounded.Delete,
-                            contentDescription = "Delete screenshot",
-                            tint = MaterialTheme.colorScheme.error,
-                        )
-                    }
+                IconButton(onClick = { showDeleteConfirm = true }) {
+                    Icon(
+                        Icons.Rounded.Delete,
+                        contentDescription = "Delete screenshot",
+                        tint = MaterialTheme.colorScheme.error,
+                    )
                 }
                 Button(
                     onClick = onDismiss,
