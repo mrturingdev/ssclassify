@@ -130,6 +130,8 @@ class ScreenshotRepositoryTest {
 
         val repo = ScreenshotRepository(FakeSource(listOf(asset("a")), emptyMap()), driver)
         assertEquals(listOf("a"), repo.search("invoice").map { it.id })
+        val legacy = repo.cached().single()
+        assertEquals(legacy.ocrText, legacy.detailText, "rows from before v5 show the filtered text as detail")
     }
 
     @Test
@@ -223,7 +225,7 @@ class ScreenshotRepositoryTest {
             override suspend fun analyze(
                 assets: List<ScreenshotAsset>,
                 onResult: (ScreenshotAsset, ScreenshotAnalysis) -> Unit,
-            ) = assets.forEach { onResult(it, ScreenshotAnalysis(rawText = raw, filteredText = "Receipt Subtotal Total Tax")) }
+            ) = assets.forEach { onResult(it, ScreenshotAnalysis(rawText = raw, filteredText = "Receipt Subtotal Total Tax", detailText = "Total Tax\nReceipt Subtotal")) }
         }
         val repo = repository(source)
         repo.scan()
@@ -231,6 +233,7 @@ class ScreenshotRepositoryTest {
         assertEquals(ImageCategory.Receipts, record.category, "edge chat banner must not win")
         assertEquals("Receipt Subtotal Total Tax", record.ocrText)
         assertEquals(raw, record.rawOcrText)
+        assertEquals("Total Tax\nReceipt Subtotal", record.detailText)
         assertEquals(listOf("a"), repo.search("whatsapp").map { it.id }, "search still covers raw text")
     }
 

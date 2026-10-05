@@ -187,7 +187,14 @@ fun ScreenshotDetailScreen(
                 HighlightsCard(highlights = highlights)
             }
 
-            // 5. OCR text: filtered (what categorization reads) and raw (everything OCR saw)
+            // 5. OCR text: detail (for reading), filtered (what categorization reads) and raw (everything OCR saw)
+            FullOcrTextCard(
+                title = "Detail",
+                ocrText = image.detailText,
+                onShowSnackbar = { message ->
+                    snackbarHostState.showSnackbar(message)
+                },
+            )
             FullOcrTextCard(
                 title = "Detected Text",
                 ocrText = image.ocrText,

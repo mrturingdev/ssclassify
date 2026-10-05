@@ -27,6 +27,8 @@ data class ScreenshotAnalysis(
     val rawText: String,
     /** Central 90%, reading order, meaningless tokens removed; drives the category. */
     val filteredText: String = rawText,
+    /** [filteredText] with outer rows moved below a middle-of-screen title, for reading. */
+    val detailText: String = filteredText,
     /** The main object, named from the text or, for image-heavy screenshots, by TensorFlow Lite. */
     val subCategory: String? = null,
     val objectSource: ObjectSource? = null,

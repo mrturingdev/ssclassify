@@ -194,6 +194,7 @@ actual class MediaScanner actual constructor() : ScreenshotSource {
                 return ScreenshotAnalysis(
                     rawText = text.raw,
                     filteredText = text.filtered,
+                    detailText = text.detail,
                     subCategory = qrResult.subLabel,
                     objectSource = ObjectSource.Ocr,
                     description = qrResult.description,
@@ -238,6 +239,7 @@ actual class MediaScanner actual constructor() : ScreenshotSource {
             return ScreenshotAnalysis(
                 rawText = text.raw,
                 filteredText = text.filtered,
+                detailText = text.detail,
                 subCategory = resolvedSubCategory,
                 objectSource = finalDetected?.source ?: if (meaning.subCategory != null) ObjectSource.Ocr else null,
                 description = finalDescription,

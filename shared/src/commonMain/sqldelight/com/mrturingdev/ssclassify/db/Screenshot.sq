@@ -15,7 +15,9 @@ CREATE TABLE screenshot (
     -- Central-90%, reading-order, cleaned OCR text; NULL for rows analyzed before v4.
     filtered_text TEXT,
     -- ObjectSource name that produced sub_category (Ocr / TensorFlowLite).
-    object_source TEXT
+    object_source TEXT,
+    -- Filtered text with outer rows moved below a middle title (OcrText.detail); NULL before v5.
+    detail_text TEXT
 );
 
 CREATE INDEX screenshot_date ON screenshot(date_millis DESC);
