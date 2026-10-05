@@ -31,3 +31,4 @@ dependencyResolutionManagement {
 include(":shared")
 include(":androidApp")
 include(":aicore")
+include(":classyBenchmark")

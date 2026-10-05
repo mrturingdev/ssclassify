@@ -11,6 +11,10 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.layout.Box
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.testTagsAsResourceId
 import androidx.core.content.ContextCompat
 import com.mrturingdev.ssclassify.App
 import com.mrturingdev.ssclassify.android.widget.RecentScreenshotsWidgetProvider
@@ -44,7 +48,10 @@ class MainActivity : ComponentActivity() {
         if (contentSet) return
         contentSet = true
         setContent {
-            App(isPermissionGranted = permissionGranted, pinWidget = widgetPinner())
+            // Exposes Compose test tags as resource ids so :classyBenchmark (UiAutomator) can find them.
+            Box(Modifier.semantics { testTagsAsResourceId = true }) {
+                App(isPermissionGranted = permissionGranted, pinWidget = widgetPinner())
+            }
         }
     }
 

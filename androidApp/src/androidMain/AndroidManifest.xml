@@ -20,6 +20,9 @@
         android:supportsRtl="true"
         android:theme="@android:style/Theme.Material.Light.NoActionBar">
 
+        <!-- Lets :classyBenchmark trace frame timing on a non-debuggable build. -->
+        <profileable android:shell="true" tools:targetApi="29" />
+
         <activity
             android:name=".MainActivity"
             android:exported="true"

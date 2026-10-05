@@ -20,6 +20,8 @@ kotlin {
             implementation(project(":shared"))
             implementation(project(":aicore"))
             implementation(libs.androidx.activity.compose)
+            implementation(libs.compose.foundation)
+            implementation(libs.compose.ui)
         }
         androidUnitTest.dependencies {
             implementation(libs.compose.runtime)
@@ -64,6 +66,12 @@ android {
             if (signingProps.getProperty("SS_STORE_FILE") != null) {
                 signingConfig = signingConfigs.getByName("upload")
             }
+        }
+        // Release-like build for :classyBenchmark. Debug-signed so it installs over a dev build and keeps its data.
+        create("benchmark") {
+            initWith(getByName("release"))
+            signingConfig = signingConfigs.getByName("debug")
+            matchingFallbacks += "release"
         }
     }
     packaging {
