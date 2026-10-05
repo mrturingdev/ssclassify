@@ -162,4 +162,14 @@ class ScreenshotContentSummarizerTest {
         val ocr = "Scan & Pay\nPayee: Everest Bakery"
         assertEquals("Everest Bakery", ScreenshotContentSummarizer.previewText(ocr, isQr = true, title = "Scan & Pay"))
     }
+
+    @Test
+    fun highlightKeywordsMustBeWholeWordsAndIdsNeedADigit() {
+        val ocr = "MEET UTOPAI X.\nElo scores from blind preference votes in our Video Arena.\n5K paying users 300 a day"
+        assertEquals(emptyList(), ScreenshotContentSummarizer.extractHighlights(ocr))
+        assertEquals(
+            listOf("Reference" to "Order #ORD-10001"),
+            ScreenshotContentSummarizer.extractHighlights("Payment successful\nOrder #ORD-10001"),
+        )
+    }
 }

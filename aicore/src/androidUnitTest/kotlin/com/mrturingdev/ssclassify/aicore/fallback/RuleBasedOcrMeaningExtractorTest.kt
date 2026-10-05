@@ -76,4 +76,14 @@ class RuleBasedOcrMeaningExtractorTest {
         assertEquals("Storage almost full", result.headline)
         assertFalse(result.cleanText.contains("#"))
     }
+
+    @Test
+    fun testExtract_noReferenceFromInsideWordsAndNoDoublePeriod() {
+        val result = RuleBasedOcrMeaningExtractor.extract(
+            "# MEET UTOPAI X.\nElo scores from blind preference votes in our Video Arena.\nGemini Omni Flash 1.1 1123",
+        )
+
+        assertTrue(result.entities.none { it.type == EntityType.IDENTIFIER }, "got ${result.entities}")
+        assertFalse(result.message.contains(".."), result.message)
+    }
 }

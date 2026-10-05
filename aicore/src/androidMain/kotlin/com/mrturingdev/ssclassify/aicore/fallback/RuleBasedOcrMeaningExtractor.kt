@@ -14,7 +14,8 @@ import com.mrturingdev.ssclassify.aicore.prompt.OcrPromptBuilder
 object RuleBasedOcrMeaningExtractor {
 
     private val AMOUNT_REGEX = Regex(
-        """(?i)(?:total|grand\s*total|subtotal|amount|due|paid|price|balance|rs\.?|npr|\$|€|£|₹)\s*[:=-]?\s*([$€£₹]?\s*\d+(?:[.,]\d{1,2})?)"""
+        // Keywords are whole words: "rs" inside "users 300" is not rupees.
+        """(?i)(?:\b(?:total|grand\s*total|subtotal|amount|due|paid|price|balance|rs\.?|npr)|\$|€|£|₹)\s*[:=-]?\s*([$€£₹]?\s*\d+(?:[.,]\d{1,2})?)"""
     )
     private val DATE_REGEX = Regex(
         """(?i)(?:date|dated)?\s*[:=-]?\s*(\b\d{1,4}[/-]\d{1,2}[/-]\d{1,4}\b|\b(?:jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*\s+\d{1,2},?\s+\d{2,4}\b)"""
@@ -24,7 +25,8 @@ object RuleBasedOcrMeaningExtractor {
         RegexOption.IGNORE_CASE
     )
     private val ID_REGEX = Regex(
-        """(?i)(?:order|invoice|txn|transaction|ticket|pnr|id|ref|bill|flight|tracking)\s*(?:no\.?|id|#)?\s*[:=-]?\s*([a-z0-9\-_]{4,24})"""
+        // Whole-word keywords ("ref" inside "preference" is not one) and an ID with at least one digit.
+        """(?i)\b(?:order|invoice|txn|transaction|ticket|pnr|id|reference|ref|bill|flight|tracking)\b\s*(?:no\.?|id|#)?\s*[:=-]?\s*((?=[a-z0-9\-_]*\d)[a-z0-9\-_]{4,24})"""
     )
     private val URL_REGEX = Regex(
         """https?://[a-zA-Z0-9.\-_]+(?::\d+)?(?:/[^\s]*)?"""
@@ -163,7 +165,8 @@ object RuleBasedOcrMeaningExtractor {
     ): String {
         val details = entities.joinToString(", ") { "${it.label}: ${it.value}" }
         return when {
-            details.isNotBlank() -> "$headline. Details: $details."
+            // "MEET UTOPAI X." already ends a sentence; don't make it "X.."
+            details.isNotBlank() -> "${if (headline.last() in ".!?") headline else "$headline."} Details: $details."
             lines.size > 1 -> lines.take(3).joinToString(" • ")
             else -> headline
         }

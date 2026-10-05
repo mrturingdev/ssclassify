@@ -10,11 +10,12 @@ object ScreenshotContentSummarizer {
     private val tokenSplitRegex = Regex("[\\s|•·\\-]+")
 
     private val amountRegex = Regex(
-        """(?i)(?:total|grand\s*total|subtotal|amount|due|paid|price|balance|rs\.?|npr|\$)\s*[:=-]?\s*([$€£₹]?\s*\d+(?:[.,]\d{1,2})?)"""
+        // Keywords are whole words: "rs" inside "users 300" is not rupees.
+        """(?i)(?:\b(?:total|grand\s*total|subtotal|amount|due|paid|price|balance|rs\.?|npr)|\$)\s*[:=-]?\s*([$€£₹]?\s*\d+(?:[.,]\d{1,2})?)"""
     )
 
     private val priorityAmountRegex = Regex(
-        """(?i)(?:total|grand\s*total|amount|due|paid)\s*[:=-]?\s*([$€£₹]?\s*\d+(?:[.,]\d{1,2})?)"""
+        """(?i)\b(?:total|grand\s*total|amount|due|paid)\s*[:=-]?\s*([$€£₹]?\s*\d+(?:[.,]\d{1,2})?)"""
     )
 
     private val dateRegex = Regex(
@@ -22,7 +23,8 @@ object ScreenshotContentSummarizer {
     )
 
     private val idRegex = Regex(
-        """(?i)(?:order|invoice|txn|transaction|ticket|pnr|id|ref|bill)\s*(?:no\.?|id|#)?\s*[:=-]?\s*([a-z0-9\-_]{4,20})"""
+        // Whole-word keywords ("ref" inside "preference" is not one) and an ID with at least one digit.
+        """(?i)\b(?:order|invoice|txn|transaction|ticket|pnr|id|reference|ref|bill)\b\s*(?:no\.?|id|#)?\s*[:=-]?\s*((?=[a-z0-9\-_]*\d)[a-z0-9\-_]{4,20})"""
     )
 
     /**
