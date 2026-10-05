@@ -72,4 +72,34 @@ class OcrTextProcessorTest {
     fun emptyInputGivesEmptyText() {
         assertEquals(OcrText("", ""), OcrTextProcessor.process(emptyList()))
     }
+
+    @Test
+    fun largerFontRowsAreMarkedAsHeadingsInReadingOrder() {
+        fun sized(text: String, centerY: Float, height: Float) =
+            OcrLine(text, 0.1f, centerY - height / 2, 0.9f, centerY + height / 2)
+        val lines = listOf(
+            sized("Order confirmed", centerY = 0.35f, height = 0.05f),
+            sized("Total 42.00", centerY = 0.45f, height = 0.025f),
+            sized("Ships in 2 days", centerY = 0.55f, height = 0.02f),
+            sized("Contact support", centerY = 0.65f, height = 0.02f),
+        )
+        val text = OcrTextProcessor.process(lines)
+        assertEquals("Order confirmed\nTotal 42.00\nShips in 2 days\nContact support", text.filtered)
+        assertEquals("# Order confirmed\n## Total 42.00\nShips in 2 days\nContact support", text.prioritized)
+    }
+
+    @Test
+    fun prioritizedReadsTheMiddleFirstThenWidensWithoutDroppingText() {
+        fun sized(text: String, centerY: Float, height: Float) =
+            OcrLine(text, 0.1f, centerY - height / 2, 0.9f, centerY + height / 2)
+        val lines = listOf(
+            sized("Starbucks", centerY = 0.08f, height = 0.05f), // outer ring
+            sized("Ordered at", centerY = 0.15f, height = 0.02f), // second ring
+            sized("Iced latte", centerY = 0.30f, height = 0.02f), // middle ring
+            sized("Total 5.45", centerY = 0.50f, height = 0.02f), // middle ring
+        )
+        val text = OcrTextProcessor.process(lines)
+        assertEquals("Starbucks\nOrdered at\nIced latte\nTotal 5.45", text.filtered)
+        assertEquals("Iced latte\nTotal 5.45\nOrdered at\n# Starbucks", text.prioritized)
+    }
 }

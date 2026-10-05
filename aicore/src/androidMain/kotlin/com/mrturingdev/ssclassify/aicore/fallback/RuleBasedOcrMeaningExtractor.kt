@@ -37,8 +37,11 @@ object RuleBasedOcrMeaningExtractor {
     )
 
     fun extract(rawOcrText: String): OcrMeaningResult {
-        val cleanText = OcrPromptBuilder.sanitizeOcrText(rawOcrText)
-        val lines = cleanText.lines().map { it.trim() }.filter { it.isNotBlank() }
+        val markedLines = OcrPromptBuilder.sanitizeOcrText(rawOcrText).lines().map { it.trim() }.filter { it.isNotBlank() }
+        val lines = markedLines.map(OcrPromptBuilder::stripHeading)
+        val cleanText = lines.joinToString("\n")
+        // Larger-font lines first (stable, so reading order holds within a level).
+        val byImportance = markedLines.sortedBy(OcrPromptBuilder::headingLevel).map(OcrPromptBuilder::stripHeading)
 
         if (lines.isEmpty()) {
             return OcrMeaningResult(
@@ -55,8 +58,8 @@ object RuleBasedOcrMeaningExtractor {
         val entities = extractEntities(cleanText)
         val isSensitive = SENSITIVE_REGEX.containsMatchIn(rawOcrText)
 
-        val headline = determineHeadline(lines, category, entities)
-        val message = synthesizeMessage(headline, category, entities, lines)
+        val headline = determineHeadline(byImportance, category, entities)
+        val message = synthesizeMessage(headline, category, entities, byImportance)
 
         return OcrMeaningResult(
             headline = headline,

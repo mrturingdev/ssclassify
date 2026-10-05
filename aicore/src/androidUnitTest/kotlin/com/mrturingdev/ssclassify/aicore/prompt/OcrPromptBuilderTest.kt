@@ -49,4 +49,16 @@ class OcrPromptBuilderTest {
         assertTrue(sanitized.length <= 150)
         assertTrue(sanitized.contains("[...truncated]"))
     }
+
+    @Test
+    fun testSanitizeOcrText_truncationKeepsLargerFontLinesInReadingOrder() {
+        val text = (List(10) { "Body detail line number $it" } + "# Flight Delayed" + "## New departure 18:40").joinToString("\n")
+        val sanitized = OcrPromptBuilder.sanitizeOcrText(text, maxChars = 100)
+
+        val lines = sanitized.lines()
+        assertTrue(lines.containsAll(listOf("# Flight Delayed", "## New departure 18:40")))
+        assertTrue(lines.indexOf("# Flight Delayed") < lines.indexOf("## New departure 18:40"))
+        assertTrue(lines.first() == "Body detail line number 0")
+        assertTrue(lines.last() == "[...truncated]")
+    }
 }

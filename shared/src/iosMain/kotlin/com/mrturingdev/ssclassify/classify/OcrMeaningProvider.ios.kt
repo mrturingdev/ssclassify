@@ -6,7 +6,11 @@ package com.mrturingdev.ssclassify.classify
  */
 actual class OcrMeaningProvider actual constructor() {
 
-    actual suspend fun extractMeaning(rawOcrText: String, filteredText: String): ExtractedOcrMeaning {
+    actual suspend fun extractMeaning(
+        rawOcrText: String,
+        filteredText: String,
+        prioritizedText: String,
+    ): ExtractedOcrMeaning {
         val input = filteredText.ifBlank { rawOcrText }
         if (input.isBlank()) {
             return ExtractedOcrMeaning(
@@ -15,7 +19,8 @@ actual class OcrMeaningProvider actual constructor() {
             )
         }
 
-        val digest = ScreenshotContentSummarizer.summarizeDigest(input)
+        // Font-size-ranked text leads the digest; highlights read the unmarked text.
+        val digest = ScreenshotContentSummarizer.summarizeDigest(prioritizedText.ifBlank { input })
         val highlights = ScreenshotContentSummarizer.extractHighlights(input)
 
         return ExtractedOcrMeaning(

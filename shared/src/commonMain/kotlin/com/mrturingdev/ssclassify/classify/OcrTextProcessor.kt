@@ -17,8 +17,13 @@ data class OcrLine(
     val height: Float get() = bottom - top
 }
 
-/** Raw OCR output next to its cleaned, reading-order version. */
-data class OcrText(val raw: String, val filtered: String)
+/**
+ * Raw OCR output next to its cleaned, reading-order version, plus [prioritized]:
+ * the filtered rows ordered middle of the screen first, widening outward, with
+ * font-size importance marked as Markdown headings ("# " title-size, "## "
+ * emphasized). That is what the meaning summarizer reads.
+ */
+data class OcrText(val raw: String, val filtered: String, val prioritized: String = filtered)
 
 /**
  * Turns one full-image OCR pass into:
@@ -35,6 +40,19 @@ object OcrTextProcessor {
     /** Margin on each side excluded from the focus region: 0.05 keeps the central 90%. Calibration knob. */
     const val FOCUS_MARGIN = 0.05f
 
+    /** Row text height over the median row height at which a row reads as a title / emphasized. Calibration knobs. */
+    const val TITLE_RATIO = 1.6f
+    const val EMPHASIS_RATIO = 1.2f
+
+    /**
+     * Focus rings as distances from the vertical middle: the middle 60% of the
+     * screen, then 80%, then the rest of the focus region. Vertical only, since
+     * left-aligned content starts near the side edges. Calibration knobs.
+     */
+    val FOCUS_RINGS = listOf(0.3f, 0.4f)
+
+    private class Row(val text: String, val size: Float, val centerY: Float)
+
     /** Clock, battery and signal tokens that status bars put into OCR. */
     internal val statusNoise = Regex(
         "^([0-2]?[0-9]:[0-5][0-9](\\s*[ap]m)?|\\d{1,3}%|lte\\+?|5g\\+?|4g|3g|wifi|volte|battery|am|pm)$",
@@ -46,11 +64,37 @@ object OcrTextProcessor {
         val focused = lines.filter {
             it.centerX in focusMargin..(1f - focusMargin) && it.centerY in focusMargin..(1f - focusMargin)
         }
-        val filtered = readingOrderRows(focused)
-            .map { row -> cleanLine(row.joinToString(" ") { it.text }) }
-            .filter { it.isNotEmpty() }
-            .joinToString("\n")
-        return OcrText(raw, filtered)
+        // Line box height is the font size: the row's tallest line sets its size.
+        val rows = readingOrderRows(focused)
+            .map { row -> Row(cleanLine(row.joinToString(" ") { it.text }), row.maxOf { it.height }, row.first().centerY) }
+            .filter { it.text.isNotEmpty() }
+        val filtered = rows.joinToString("\n") { it.text }
+        return OcrText(raw, filtered, prioritize(rows))
+    }
+
+    /**
+     * Orders rows by focus ring, middle first (reading order within a ring), and
+     * marks rows whose font is clearly larger than the screen's body text (the
+     * median row height) as "# " or "## " headings. Nothing is dropped.
+     */
+    private fun prioritize(rows: List<Row>): String {
+        if (rows.isEmpty()) return ""
+        // Lower median: body text is the baseline, so headings never pull it up.
+        val median = rows.map { it.size }.sorted()[(rows.size - 1) / 2]
+        return rows.sortedBy(::ring).joinToString("\n") { row ->
+            when {
+                median <= 0f -> row.text
+                row.size >= median * TITLE_RATIO -> "# ${row.text}"
+                row.size >= median * EMPHASIS_RATIO -> "## ${row.text}"
+                else -> row.text
+            }
+        }
+    }
+
+    /** 0 for the middle ring, widening outward; rows past every ring share the last index. */
+    private fun ring(row: Row): Int {
+        val offset = kotlin.math.abs(row.centerY - 0.5f)
+        return FOCUS_RINGS.indexOfFirst { offset <= it }.takeIf { it >= 0 } ?: FOCUS_RINGS.size
     }
 
     /**

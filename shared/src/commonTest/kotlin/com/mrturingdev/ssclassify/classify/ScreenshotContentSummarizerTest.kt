@@ -78,6 +78,12 @@ class ScreenshotContentSummarizerTest {
     }
 
     @Test
+    fun digestLeadsWithLargestFontLine() {
+        val digest = ScreenshotContentSummarizer.summarizeDigest("Settings\nAccount\n# Storage almost full\nFree up space soon")
+        assertEquals("Storage almost full • Settings", digest)
+    }
+
+    @Test
     fun extractsCompanyNameFromLabeledMerchantField() {
         val ocr = """
             Scan & Pay

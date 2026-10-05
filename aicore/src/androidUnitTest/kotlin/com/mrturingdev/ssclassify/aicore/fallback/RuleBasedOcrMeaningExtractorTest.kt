@@ -5,6 +5,7 @@ import com.mrturingdev.ssclassify.aicore.model.InferenceSource
 import com.mrturingdev.ssclassify.aicore.model.MeaningCategory
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
 import kotlin.test.assertNotNull
 import kotlin.test.assertTrue
 
@@ -66,5 +67,13 @@ class RuleBasedOcrMeaningExtractorTest {
         assertEquals(MeaningCategory.UNCATEGORIZED, result.category)
         assertEquals(0.0f, result.confidence)
         assertEquals("No Text Detected", result.headline)
+    }
+
+    @Test
+    fun testExtract_headlineComesFromLargestFontLine() {
+        val result = RuleBasedOcrMeaningExtractor.extract("Settings\nAccount\n# Storage almost full\nFree up space soon")
+
+        assertEquals("Storage almost full", result.headline)
+        assertFalse(result.cleanText.contains("#"))
     }
 }

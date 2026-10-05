@@ -27,12 +27,13 @@ object OcrPromptBuilder {
 You are an on-device AI reading OCR text extracted from a mobile screenshot or image.
 Your task is to understand what this image represents, extract its actual message and meaning, remove OCR noise (status bar, battery, icons, glitches), and output a valid JSON object.
 
-RAW OCR TEXT:
+RAW OCR TEXT (middle of the screen first, then the outer areas, in reading order within each area; lines starting with "# " are the largest, title-size text on screen and lines starting with "## " are emphasized, larger-than-body text):
 ---
 $sanitizedText
 ---
 
 INSTRUCTIONS:
+Prioritize by font size: "# " lines say what the screen is, "## " lines carry the key facts, plain lines are supporting detail. Build the headline from "# " lines and lead the message with "#"/"##" content, using plain lines only to add context. Never copy the "#" markers into the output.
 1. "headline": A crisp 3-8 word title describing what this document/screen is (e.g. "Whole Foods Grocery Receipt", "Delta Flight 1284 Boarding Pass", "WhatsApp Conversation with Alex").
 2. "message": A 1-2 sentence coherent summary of the main message or meaning (e.g. "Total purchase of $34.50 at Whole Foods paid on Oct 12 with MasterCard." or "Flight departing JFK at 14:15 Gate B2, boarding at 13:35.").
 3. "category": Choose exactly ONE: ${MeaningCategory.entries.joinToString(", ") { it.name }}.
@@ -78,12 +79,30 @@ OUTPUT ONLY THE JSON OBJECT, NO EXTRA COMMENTARY:
             }
 
         val joined = cleanedLines.joinToString("\n")
-        return if (joined.length > maxChars) {
-            joined.take(maxChars).trimEnd() + "\n[...truncated]"
-        } else {
-            joined
-        }
+        if (joined.length <= maxChars) return joined
+
+        // Over budget: spend it on larger-font lines first, then body lines top-down,
+        // and emit the kept lines in their original reading order.
+        var used = 0
+        val kept = cleanedLines.indices.sortedBy { headingLevel(cleanedLines[it]) }
+            .filter { i ->
+                val cost = cleanedLines[i].length + 1
+                (used + cost <= maxChars).also { if (it) used += cost }
+            }
+            .sorted()
+        val truncated = if (kept.isEmpty()) joined.take(maxChars).trimEnd() else kept.joinToString("\n") { cleanedLines[it] }
+        return truncated + "\n[...truncated]"
     }
+
+    /** 1 for a "# " title line, 2 for a "## " emphasized line, 3 for body text (font-size markers from OCR). */
+    fun headingLevel(line: String): Int = when {
+        line.startsWith("# ") -> 1
+        line.startsWith("## ") -> 2
+        else -> 3
+    }
+
+    /** The line without its font-size heading marker. */
+    fun stripHeading(line: String): String = line.removePrefix("## ").removePrefix("# ")
 
     private fun isNoiseLine(line: String): Boolean {
         if (line.length <= 1) return true

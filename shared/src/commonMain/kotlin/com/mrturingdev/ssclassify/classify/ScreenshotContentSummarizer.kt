@@ -25,25 +25,33 @@ object ScreenshotContentSummarizer {
         """(?i)(?:order|invoice|txn|transaction|ticket|pnr|id|ref|bill)\s*(?:no\.?|id|#)?\s*[:=-]?\s*([a-z0-9\-_]{4,20})"""
     )
 
-    /** Generates a concise 1-2 line summary for preview cards and dialog headers. */
+    /**
+     * Generates a concise 1-2 line summary for preview cards and dialog headers.
+     * Accepts [OcrText.prioritized]: "# " / "## " font-size headings lead the
+     * title; plain text without markers keeps reading order.
+     */
     fun summarizeDigest(ocrText: String, fallbackDescription: String? = null): String {
-        val lines = ocrText.lines()
+        val marked = ocrText.lines()
             .map { it.trim() }
-            .filter { it.isNotBlank() && !isNoiseLine(it) }
+            .filter { it.isNotBlank() && !isNoiseLine(headingText(it)) }
 
-        if (lines.isEmpty()) {
+        if (marked.isEmpty()) {
             return fallbackDescription?.takeIf { it.isNotBlank() } ?: "No text detected"
         }
+
+        val lines = marked.map(::headingText)
+        // Larger-font lines first (stable, so reading order holds within a level).
+        val byImportance = marked.sortedBy(::headingLevel).map(::headingText)
 
         // Check if there is an amount or headline line
         val amountLine = lines.lastOrNull { priorityAmountRegex.containsMatchIn(it) }
             ?: lines.firstOrNull { amountRegex.containsMatchIn(it) }
-        val titleLine = lines.firstOrNull { it.length in 4..60 && !amountRegex.containsMatchIn(it) } ?: lines.first()
+        val titleLine = byImportance.firstOrNull { it.length in 4..60 && !amountRegex.containsMatchIn(it) } ?: byImportance.first()
 
         val digest = if (amountLine != null && amountLine != titleLine) {
             "$titleLine • $amountLine"
         } else {
-            lines.take(2).joinToString(" • ")
+            byImportance.take(2).joinToString(" • ")
         }
 
         return if (digest.length > 90) digest.take(87).trimEnd() + "..." else digest
@@ -213,6 +221,15 @@ object ScreenshotContentSummarizer {
             .filter { it.isNotBlank() }
             .joinToString("\n")
     }
+
+    /** 1 for a "# " title line, 2 for a "## " emphasized line, 3 for body text. */
+    private fun headingLevel(line: String): Int = when {
+        line.startsWith("# ") -> 1
+        line.startsWith("## ") -> 2
+        else -> 3
+    }
+
+    private fun headingText(line: String): String = line.removePrefix("## ").removePrefix("# ")
 
     private fun isNoiseLine(line: String): Boolean {
         val clean = line.trim().lowercase()

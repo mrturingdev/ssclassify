@@ -114,7 +114,7 @@ actual class MediaScanner actual constructor() : ScreenshotSource {
             // No image classifier on iOS yet: the object can only come from the text.
             val text = OcrTextProcessor.process(ocr.recognizeLines(asset))
             val detected = ObjectResolver.fromText(text.filtered)
-            val meaning = meaningProvider.extractMeaning(text.raw, text.filtered)
+            val meaning = meaningProvider.extractMeaning(text.raw, text.filtered, text.prioritized)
             onResult(
                 item,
                 ScreenshotAnalysis(
