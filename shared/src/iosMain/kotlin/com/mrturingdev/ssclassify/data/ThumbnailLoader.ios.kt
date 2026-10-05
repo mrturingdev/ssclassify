@@ -31,19 +31,23 @@ actual class ThumbnailLoader actual constructor() {
     private val manager = PHImageManager.defaultManager()
     private val mutex = Mutex()
 
+    // A fling requests dozens of thumbnails at once; bound the decodes so they don't starve the UI.
+    private val decodeDispatcher = Dispatchers.IO.limitedParallelism(3)
+
     // Insertion order doubles as recency: a hit is re-inserted at the end.
     private val cache = LinkedHashMap<String, ImageBitmap>()
     private var cachedBytes = 0L
 
-    actual suspend fun load(id: String, sizePx: Int): ImageBitmap? = withContext(Dispatchers.IO) {
+    actual suspend fun load(id: String, sizePx: Int): ImageBitmap? = withContext(decodeDispatcher) {
+        val key = "$id@$sizePx"
+        // Lock only the cache, so hits never queue behind a slow Photos fetch.
         mutex.withLock {
-            val key = "$id@$sizePx"
             cache.remove(key)?.let { hit ->
                 cache[key] = hit
-                return@withLock hit
+                return@withContext hit
             }
-            fetch(id, sizePx)?.also { put(key, it) }
         }
+        fetch(id, sizePx)?.also { mutex.withLock { put(key, it) } }
     }
 
     private fun put(key: String, bitmap: ImageBitmap) {

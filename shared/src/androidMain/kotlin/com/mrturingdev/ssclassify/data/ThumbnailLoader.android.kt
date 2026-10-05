@@ -20,7 +20,10 @@ actual class ThumbnailLoader actual constructor() {
             value.width * value.height * 4 / 1024
     }
 
-    actual suspend fun load(id: String, sizePx: Int): ImageBitmap? = withContext(Dispatchers.IO) {
+    // A fling requests dozens of thumbnails at once; unbounded IO threads starve the UI thread of CPU.
+    private val decodeDispatcher = Dispatchers.IO.limitedParallelism(3)
+
+    actual suspend fun load(id: String, sizePx: Int): ImageBitmap? = withContext(decodeDispatcher) {
         val key = "$id@$sizePx"
         cache.get(key) ?: decode(id, sizePx)?.also { cache.put(key, it) }
     }
@@ -32,7 +35,12 @@ actual class ThumbnailLoader actual constructor() {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
                 val source = ImageDecoder.createSource(resolver, uri)
                 ImageDecoder.decodeBitmap(source) { decoder, info, _ ->
-                    decoder.setTargetSampleSize(computeSampleSize(info.size.width, info.size.height, sizePx))
+                    // Exact size, short side = sizePx: power-of-two sampling left screenshots ~3x too large.
+                    val (w, h) = info.size.width to info.size.height
+                    val scale = sizePx.toFloat() / minOf(w, h)
+                    if (scale < 1f) {
+                        decoder.setTargetSize((w * scale).toInt().coerceAtLeast(1), (h * scale).toInt().coerceAtLeast(1))
+                    }
                 }.asImageBitmap()
             } else {
                 decodeLegacy(resolver, uri, sizePx)
