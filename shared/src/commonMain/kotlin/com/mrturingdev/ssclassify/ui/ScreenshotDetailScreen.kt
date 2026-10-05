@@ -195,13 +195,16 @@ fun ScreenshotDetailScreen(
                     snackbarHostState.showSnackbar(message)
                 },
             )
-            FullOcrTextCard(
-                title = "Detected Text",
-                ocrText = image.ocrText,
-                onShowSnackbar = { message ->
-                    snackbarHostState.showSnackbar(message)
-                },
-            )
+            // Detail only differs when it moved outer rows down; otherwise this card would repeat it.
+            if (image.ocrText != image.detailText) {
+                FullOcrTextCard(
+                    title = "Detected Text",
+                    ocrText = image.ocrText,
+                    onShowSnackbar = { message ->
+                        snackbarHostState.showSnackbar(message)
+                    },
+                )
+            }
             if (image.rawOcrText.isNotBlank()) {
                 FullOcrTextCard(
                     title = "Raw OCR Text",
