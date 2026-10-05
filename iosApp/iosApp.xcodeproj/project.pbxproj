@@ -13,6 +13,8 @@
 		AC00000000000000000000A2 /* ScreenshotLibrary.swift in Sources */ = {isa = PBXBuildFile; fileRef = AC00000000000000000000B2 /* ScreenshotLibrary.swift */; };
 		AC00000000000000000000A3 /* RecentScreenshotsWidget.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = AC00000000000000000000B5 /* RecentScreenshotsWidget.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 		AB00000000000000000000A3 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = AB00000000000000000000B7 /* Assets.xcassets */; };
+		AD00000000000000000000A6 /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = AD00000000000000000000B1 /* PrivacyInfo.xcprivacy */; };
+		AD00000000000000000000A7 /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = AD00000000000000000000B1 /* PrivacyInfo.xcprivacy */; };
 		AC00000000000000000000A4 /* WidgetSnapshot.swift in Sources */ = {isa = PBXBuildFile; fileRef = AC00000000000000000000B6 /* WidgetSnapshot.swift */; };
 		AC00000000000000000000A5 /* CycleCategoryIntent.swift in Sources */ = {isa = PBXBuildFile; fileRef = AC00000000000000000000B7 /* CycleCategoryIntent.swift */; };
 /* End PBXBuildFile section */
@@ -54,6 +56,7 @@
 		AC00000000000000000000B4 /* RecentScreenshotsWidget.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = RecentScreenshotsWidget.entitlements; sourceTree = "<group>"; };
 		AC00000000000000000000B5 /* RecentScreenshotsWidget.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = RecentScreenshotsWidget.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 		AB00000000000000000000B7 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
+		AD00000000000000000000B1 /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; lastKnownFileType = text.xml; path = PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
 		AB00000000000000000000B8 /* iosApp.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = iosApp.entitlements; sourceTree = "<group>"; };
 		AC00000000000000000000B6 /* WidgetSnapshot.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WidgetSnapshot.swift; sourceTree = "<group>"; };
 		AC00000000000000000000B7 /* CycleCategoryIntent.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CycleCategoryIntent.swift; sourceTree = "<group>"; };
@@ -102,6 +105,7 @@
 				AB00000000000000000000B1 /* iOSApp.swift */,
 				AB00000000000000000000B2 /* ContentView.swift */,
 				AB00000000000000000000B7 /* Assets.xcassets */,
+				AD00000000000000000000B1 /* PrivacyInfo.xcprivacy */,
 				AB00000000000000000000B3 /* Info.plist */,
 				AB00000000000000000000B8 /* iosApp.entitlements */,
 			);
@@ -213,6 +217,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				AB00000000000000000000A3 /* Assets.xcassets in Resources */,
+				AD00000000000000000000A6 /* PrivacyInfo.xcprivacy in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -220,6 +225,7 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				AD00000000000000000000A7 /* PrivacyInfo.xcprivacy in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

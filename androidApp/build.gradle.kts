@@ -1,4 +1,5 @@
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
+import java.util.Properties
 
 plugins {
     alias(libs.plugins.kotlinMultiplatform)
@@ -41,9 +42,28 @@ android {
         versionCode = 1
         versionName = "1.0"
     }
+    val signingProps = Properties().apply {
+        val f = rootProject.file("local.properties")
+        if (f.exists()) f.inputStream().use { load(it) }
+    }
+    signingConfigs {
+        create("upload") {
+            val store = signingProps.getProperty("SS_STORE_FILE")
+            if (store != null) {
+                storeFile = rootProject.file(store)
+                storePassword = signingProps.getProperty("SS_STORE_PASSWORD")
+                keyAlias = signingProps.getProperty("SS_KEY_ALIAS")
+                keyPassword = signingProps.getProperty("SS_KEY_PASSWORD")
+            }
+        }
+    }
     buildTypes {
         release {
             isMinifyEnabled = false
+            // Only sign when a keystore is configured locally, so CI/other machines still build unsigned.
+            if (signingProps.getProperty("SS_STORE_FILE") != null) {
+                signingConfig = signingConfigs.getByName("upload")
+            }
         }
     }
     packaging {

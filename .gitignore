@@ -23,3 +23,8 @@ DerivedData/
 
 # macOS resource forks
 __MACOSX/
+
+# Release signing (secrets — never commit)
+keystore/
+*.jks
+*.keystore
