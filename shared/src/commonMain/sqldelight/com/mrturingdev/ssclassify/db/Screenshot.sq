@@ -18,7 +18,7 @@ CREATE TABLE screenshot (
     object_source TEXT,
     -- Filtered text with outer rows moved below a middle title (OcrText.detail); NULL before v5.
     detail_text TEXT,
-    -- Names the screen for previews: the AICore headline, else OcrText.title; NULL before v5 or when nothing stood out.
+    -- Names the screen for previews: the AICore headline, else OcrText.title; NULL before v6 or when nothing stood out.
     title TEXT
 );
 

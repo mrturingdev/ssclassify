@@ -1,5 +1,3 @@
--- v4 -> v5: reading-order detail text (OcrText.detail) and the preview title.
--- Existing rows read NULL and fall back to the filtered text and the digest
--- until they are re-analyzed.
+-- v4 -> v5: reading-order detail text (OcrText.detail). Existing rows read
+-- NULL and fall back to the filtered text until they are re-analyzed.
 ALTER TABLE screenshot ADD COLUMN detail_text TEXT;
-ALTER TABLE screenshot ADD COLUMN title TEXT;
