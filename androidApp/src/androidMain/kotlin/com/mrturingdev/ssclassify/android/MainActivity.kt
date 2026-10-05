@@ -6,6 +6,7 @@ import android.content.ComponentName
 import android.content.Intent
 import android.content.pm.ApplicationInfo
 import android.content.pm.PackageManager
+import android.net.Uri
 import android.os.Build
 import android.os.Bundle
 import androidx.activity.ComponentActivity
@@ -26,6 +27,7 @@ import com.mrturingdev.ssclassify.widget.DeepLinks
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import java.io.File
 
 class MainActivity : ComponentActivity() {
 
@@ -42,6 +44,7 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         initAndroid(this)
         openRequestedScreenshot(intent)
+        exportRequestedOcrLines(intent)
 
         if (hasPhotoPermission()) {
             setAppContent(permissionGranted = true)
@@ -69,6 +72,7 @@ class MainActivity : ComponentActivity() {
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         openRequestedScreenshot(intent)
+        exportRequestedOcrLines(intent)
     }
 
     private fun openRequestedScreenshot(intent: Intent?) {
@@ -88,16 +92,35 @@ class MainActivity : ComponentActivity() {
 
     private fun isDebuggable(): Boolean = applicationInfo.flags and ApplicationInfo.FLAG_DEBUGGABLE != 0
 
-    /** Re-runs OCR on one screenshot and shares its lines as JSON for calibration fixtures. */
+    /**
+     * Re-runs OCR on one screenshot, saves its lines as JSON for calibration
+     * fixtures (files/ocr-lines/, readable with `adb shell run-as`) and shares them.
+     */
     private fun shareOcrLines(id: String) {
         lifecycleScope.launch {
-            val json = withContext(Dispatchers.Default) { ocrLinesJson(this@MainActivity, id) } ?: return@launch
+            val json = withContext(Dispatchers.Default) { saveOcrLines(id) } ?: return@launch
             val send = Intent(Intent.ACTION_SEND)
                 .setType("text/plain")
                 .putExtra(Intent.EXTRA_SUBJECT, "ocr-lines.json")
                 .putExtra(Intent.EXTRA_TEXT, json)
             startActivity(Intent.createChooser(send, "Export OCR lines"))
         }
+    }
+
+    private fun saveOcrLines(id: String): String? {
+        val json = ocrLinesJson(this, id) ?: return null
+        File(filesDir, "ocr-lines").apply { mkdirs() }.resolve("${Uri.parse(id).lastPathSegment}.json").writeText(json)
+        return json
+    }
+
+    /**
+     * Debug only: `adb shell am start -n <pkg>/.MainActivity --es export_ocr_ids content://...,content://...`
+     * saves each screenshot's OCR lines without opening the share sheet.
+     */
+    private fun exportRequestedOcrLines(intent: Intent?) {
+        if (!isDebuggable()) return
+        val ids = intent?.getStringExtra(EXTRA_EXPORT_OCR_IDS)?.split(',')?.filter { it.isNotBlank() } ?: return
+        lifecycleScope.launch(Dispatchers.Default) { ids.forEach(::saveOcrLines) }
     }
 
     private fun hasPhotoPermission(): Boolean =
@@ -109,4 +132,8 @@ class MainActivity : ComponentActivity() {
         } else {
             Manifest.permission.READ_EXTERNAL_STORAGE
         }
+
+    private companion object {
+        const val EXTRA_EXPORT_OCR_IDS = "export_ocr_ids"
+    }
 }
