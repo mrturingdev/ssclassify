@@ -36,7 +36,7 @@ flowchart TD
 ## 3. Data Model & Summarization Engine
 
 ### 3.1 Model Updates
-In [`ImageRecord`](file:///Users/user/Desktop/AGY_GLOBAL/image-categorizer/shared/src/commonMain/kotlin/com/agy/imagecategorizer/model/Models.kt):
+In [`ImageRecord`](file:///Users/user/Desktop/AGY_GLOBAL/image-categorizer/shared/src/commonMain/kotlin/com/mrturingdev/ssclassify/model/Models.kt):
 ```kotlin
 data class ImageRecord(
     val id: String,
@@ -54,11 +54,11 @@ data class ImageRecord(
     val ocrText: String = "",
 )
 ```
-In [`ScreenshotRepository.kt`](file:///Users/user/Desktop/AGY_GLOBAL/image-categorizer/shared/src/commonMain/kotlin/com/agy/imagecategorizer/data/ScreenshotRepository.kt):
+In [`ScreenshotRepository.kt`](file:///Users/user/Desktop/AGY_GLOBAL/image-categorizer/shared/src/commonMain/kotlin/com/mrturingdev/ssclassify/data/ScreenshotRepository.kt):
 Pass `ocr_text` from the SQLite row into `ImageRecord.ocrText`.
 
 ### 3.2 Content Summarizer (`ScreenshotContentSummarizer`)
-Located in `shared/src/commonMain/kotlin/com/agy/imagecategorizer/classify/ScreenshotContentSummarizer.kt`:
+Located in `shared/src/commonMain/kotlin/com/mrturingdev/ssclassify/classify/ScreenshotContentSummarizer.kt`:
 * **Input**: `ocrText: String`, `name: String`, `subCategory: String?`.
 * **Outputs**:
   * `summaryDigest: String`: 1–2 line concise summary. Strips status-bar clutter (time patterns like `12:45`, battery percentages, lonely symbols). Identifies primary headline or narrative sentences. Truncates cleanly to ~100 characters.
@@ -70,7 +70,7 @@ Located in `shared/src/commonMain/kotlin/com/agy/imagecategorizer/classify/Scree
   * `cleanFullText: String`: Cleaned, nicely spaced full transcript for easy reading.
 
 ### 3.3 High-Resolution Thumbnail Loading
-In [`ThumbnailLoader.android.kt`](file:///Users/user/Desktop/AGY_GLOBAL/image-categorizer/shared/src/androidMain/kotlin/com/agy/imagecategorizer/data/ThumbnailLoader.android.kt) & [`ThumbnailLoader.ios.kt`](file:///Users/user/Desktop/AGY_GLOBAL/image-categorizer/shared/src/iosMain/kotlin/com/agy/imagecategorizer/data/ThumbnailLoader.ios.kt):
+In [`ThumbnailLoader.android.kt`](file:///Users/user/Desktop/AGY_GLOBAL/image-categorizer/shared/src/androidMain/kotlin/com/mrturingdev/ssclassify/data/ThumbnailLoader.android.kt) & [`ThumbnailLoader.ios.kt`](file:///Users/user/Desktop/AGY_GLOBAL/image-categorizer/shared/src/iosMain/kotlin/com/mrturingdev/ssclassify/data/ThumbnailLoader.ios.kt):
 * Key cache by `"$id@$sizePx"`.
 * Support high-resolution request (`sizePx = 2048` or `0` for uncapped) for fullscreen and detail view.
 

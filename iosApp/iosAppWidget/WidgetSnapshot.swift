@@ -18,7 +18,7 @@ struct WidgetSnapshot: Decodable {
 
     let categories: [Category]
 
-    static let appGroup = "group.com.agy.imagecategorizer"
+    static let appGroup = "group.com.mrturingdev.ssclassify"
     private static let fileName = "widget-snapshot.json"
     private static let selectionKey = "widget.category"
 

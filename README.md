@@ -61,7 +61,7 @@ Other images are ignored. Everything runs on-device, no network.
 image-categorizer/
 ├── shared/                          # Kotlin Multiplatform module
 │   ├── src/commonMain/             # Shared Compose UI + domain + categorize logic
-│   │   └── kotlin/com/agy/imagecategorizer/
+│   │   └── kotlin/com/mrturingdev/ssclassify/
 │   │       ├── App.kt             # Root composable, scan flow, PERMISSION_DENIED
 │   │       ├── model/             # ImageCategory, ImageRecord
 │   │       ├── classify/          # ScreenshotCategorizer (pure keyword rules)

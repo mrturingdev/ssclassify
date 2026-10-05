@@ -246,7 +246,7 @@ CREATE VIRTUAL TABLE screenshot_fts USING fts4(
 );
 ```
 
-Use FTS4, not FTS5: Android's framework SQLite does not ship FTS5 (verified on API 36), and bundling SQLite is not worth it for this. Key the FTS table by `screenshot.rowid` and keep it in sync with triggers. Replace rows with delete + insert, because `INSERT OR REPLACE` skips delete triggers and `ON CONFLICT DO UPDATE` needs SQLite 3.24 (Android 11+). The implemented schema is `shared/src/commonMain/sqldelight/com/agy/imagecategorizer/db/Screenshot.sq`.
+Use FTS4, not FTS5: Android's framework SQLite does not ship FTS5 (verified on API 36), and bundling SQLite is not worth it for this. Key the FTS table by `screenshot.rowid` and keep it in sync with triggers. Replace rows with delete + insert, because `INSERT OR REPLACE` skips delete triggers and `ON CONFLICT DO UPDATE` needs SQLite 3.24 (Android 11+). The implemented schema is `shared/src/commonMain/sqldelight/com/mrturingdev/ssclassify/db/Screenshot.sq`.
 
 ### Classification strategy
 
@@ -391,7 +391,7 @@ Use interfaces for native capabilities. Avoid leaking Android `Uri`, `Context`, 
 
 ## 11.5. On-Device Semantic Extraction with Android AICore
 
-The `:aicore` Android module (`com.agy.imagecategorizer.aicore`) provides on-device generative semantic intelligence using Google Play Services Android AICore and Gemini Nano.
+The `:aicore` Android module (`com.mrturingdev.ssclassify.aicore`) provides on-device generative semantic intelligence using Google Play Services Android AICore and Gemini Nano.
 
 ### Architecture:
 - **`AiCoreClient`**: Abstraction wrapping `com.google.ai.edge.aicore.GenerativeModel`. Manages lifecycle, preparation, streaming, and maps `GenerativeAIException.ErrorCode` (busy, updates, storage limits) to observable `AiCoreStatus`.

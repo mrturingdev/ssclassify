@@ -20,9 +20,9 @@
 ### Task 1: Expose Preserved `ocrText` in `ImageRecord` and Update Repository Mapping
 
 **Files:**
-- Modify: `shared/src/commonMain/kotlin/com/agy/imagecategorizer/model/Models.kt:20-50`
-- Modify: `shared/src/commonMain/kotlin/com/agy/imagecategorizer/data/ScreenshotRepository.kt:115-135`
-- Test: `shared/src/androidUnitTest/kotlin/com/agy/imagecategorizer/data/ScreenshotRepositoryTest.kt`
+- Modify: `shared/src/commonMain/kotlin/com/mrturingdev/ssclassify/model/Models.kt:20-50`
+- Modify: `shared/src/commonMain/kotlin/com/mrturingdev/ssclassify/data/ScreenshotRepository.kt:115-135`
+- Test: `shared/src/androidUnitTest/kotlin/com/mrturingdev/ssclassify/data/ScreenshotRepositoryTest.kt`
 
 **Interfaces:**
 - Consumes: `ocr_text` column from SQLDelight `screenshot` table.
@@ -30,7 +30,7 @@
 
 - [ ] **Step 1: Write the failing test**
 
-Add test to `shared/src/androidUnitTest/kotlin/com/agy/imagecategorizer/data/ScreenshotRepositoryTest.kt`:
+Add test to `shared/src/androidUnitTest/kotlin/com/mrturingdev/ssclassify/data/ScreenshotRepositoryTest.kt`:
 ```kotlin
     @Test
     fun cachedRecordsIncludeOcrText() = runBlocking {
@@ -47,12 +47,12 @@ Add test to `shared/src/androidUnitTest/kotlin/com/agy/imagecategorizer/data/Scr
 
 - [ ] **Step 2: Run test to verify it fails**
 
-Run: `./gradlew :shared:testDebugUnitTest --tests "com.agy.imagecategorizer.data.ScreenshotRepositoryTest.cachedRecordsIncludeOcrText"`
+Run: `./gradlew :shared:testDebugUnitTest --tests "com.mrturingdev.ssclassify.data.ScreenshotRepositoryTest.cachedRecordsIncludeOcrText"`
 Expected: Compilation failure or assertion failure because `ocrText` does not exist on `ImageRecord`.
 
 - [ ] **Step 3: Implement minimal code**
 
-In `shared/src/commonMain/kotlin/com/agy/imagecategorizer/model/Models.kt`:
+In `shared/src/commonMain/kotlin/com/mrturingdev/ssclassify/model/Models.kt`:
 Add `val ocrText: String = ""` to `ImageRecord`:
 ```kotlin
 data class ImageRecord(
@@ -78,7 +78,7 @@ data class ImageRecord(
 }
 ```
 
-In `shared/src/commonMain/kotlin/com/agy/imagecategorizer/data/ScreenshotRepository.kt`:
+In `shared/src/commonMain/kotlin/com/mrturingdev/ssclassify/data/ScreenshotRepository.kt`:
 Update `Row.toRecord(learner: CorrectionLearner)`:
 ```kotlin
     private fun Row.toRecord(learner: CorrectionLearner): ImageRecord {
@@ -108,13 +108,13 @@ Update `Row.toRecord(learner: CorrectionLearner)`:
 
 - [ ] **Step 4: Run test to verify it passes**
 
-Run: `./gradlew :shared:testDebugUnitTest --tests "com.agy.imagecategorizer.data.ScreenshotRepositoryTest.cachedRecordsIncludeOcrText"`
+Run: `./gradlew :shared:testDebugUnitTest --tests "com.mrturingdev.ssclassify.data.ScreenshotRepositoryTest.cachedRecordsIncludeOcrText"`
 Expected: PASS.
 
 - [ ] **Step 5: Commit**
 
 ```bash
-git add shared/src/commonMain/kotlin/com/agy/imagecategorizer/model/Models.kt shared/src/commonMain/kotlin/com/agy/imagecategorizer/data/ScreenshotRepository.kt shared/src/androidUnitTest/kotlin/com/agy/imagecategorizer/data/ScreenshotRepositoryTest.kt
+git add shared/src/commonMain/kotlin/com/mrturingdev/ssclassify/model/Models.kt shared/src/commonMain/kotlin/com/mrturingdev/ssclassify/data/ScreenshotRepository.kt shared/src/androidUnitTest/kotlin/com/mrturingdev/ssclassify/data/ScreenshotRepositoryTest.kt
 git commit -m "feat(shared): expose preserved ocrText in ImageRecord"
 ```
 
@@ -123,8 +123,8 @@ git commit -m "feat(shared): expose preserved ocrText in ImageRecord"
 ### Task 2: Implement `ScreenshotContentSummarizer` with Unit Tests
 
 **Files:**
-- Create: `shared/src/commonMain/kotlin/com/agy/imagecategorizer/classify/ScreenshotContentSummarizer.kt`
-- Create: `shared/src/commonTest/kotlin/com/agy/imagecategorizer/classify/ScreenshotContentSummarizerTest.kt`
+- Create: `shared/src/commonMain/kotlin/com/mrturingdev/ssclassify/classify/ScreenshotContentSummarizer.kt`
+- Create: `shared/src/commonTest/kotlin/com/mrturingdev/ssclassify/classify/ScreenshotContentSummarizerTest.kt`
 
 **Interfaces:**
 - Produces:
@@ -134,9 +134,9 @@ git commit -m "feat(shared): expose preserved ocrText in ImageRecord"
 
 - [ ] **Step 1: Write the failing tests**
 
-Create `shared/src/commonTest/kotlin/com/agy/imagecategorizer/classify/ScreenshotContentSummarizerTest.kt`:
+Create `shared/src/commonTest/kotlin/com/mrturingdev/ssclassify/classify/ScreenshotContentSummarizerTest.kt`:
 ```kotlin
-package com.agy.imagecategorizer.classify
+package com.mrturingdev.ssclassify.classify
 
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -186,14 +186,14 @@ class ScreenshotContentSummarizerTest {
 
 - [ ] **Step 2: Run test to verify it fails**
 
-Run: `./gradlew :shared:testDebugUnitTest --tests "com.agy.imagecategorizer.classify.ScreenshotContentSummarizerTest"`
+Run: `./gradlew :shared:testDebugUnitTest --tests "com.mrturingdev.ssclassify.classify.ScreenshotContentSummarizerTest"`
 Expected: FAIL with compilation error (unresolved reference `ScreenshotContentSummarizer`).
 
 - [ ] **Step 3: Implement `ScreenshotContentSummarizer`**
 
-Create `shared/src/commonMain/kotlin/com/agy/imagecategorizer/classify/ScreenshotContentSummarizer.kt`:
+Create `shared/src/commonMain/kotlin/com/mrturingdev/ssclassify/classify/ScreenshotContentSummarizer.kt`:
 ```kotlin
-package com.agy.imagecategorizer.classify
+package com.mrturingdev.ssclassify.classify
 
 object ScreenshotContentSummarizer {
 
@@ -273,13 +273,13 @@ object ScreenshotContentSummarizer {
 
 - [ ] **Step 4: Run test to verify it passes**
 
-Run: `./gradlew :shared:testDebugUnitTest --tests "com.agy.imagecategorizer.classify.ScreenshotContentSummarizerTest"`
+Run: `./gradlew :shared:testDebugUnitTest --tests "com.mrturingdev.ssclassify.classify.ScreenshotContentSummarizerTest"`
 Expected: PASS (all tests green).
 
 - [ ] **Step 5: Commit**
 
 ```bash
-git add shared/src/commonMain/kotlin/com/agy/imagecategorizer/classify/ScreenshotContentSummarizer.kt shared/src/commonTest/kotlin/com/agy/imagecategorizer/classify/ScreenshotContentSummarizerTest.kt
+git add shared/src/commonMain/kotlin/com/mrturingdev/ssclassify/classify/ScreenshotContentSummarizer.kt shared/src/commonTest/kotlin/com/mrturingdev/ssclassify/classify/ScreenshotContentSummarizerTest.kt
 git commit -m "feat(shared): add ScreenshotContentSummarizer for digest and highlights"
 ```
 
@@ -288,8 +288,8 @@ git commit -m "feat(shared): add ScreenshotContentSummarizer for digest and high
 ### Task 3: Enhance `ThumbnailLoader` with Resolution-Aware Caching & High-Res Support
 
 **Files:**
-- Modify: `shared/src/androidMain/kotlin/com/agy/imagecategorizer/data/ThumbnailLoader.android.kt`
-- Modify: `shared/src/iosMain/kotlin/com/agy/imagecategorizer/data/ThumbnailLoader.ios.kt`
+- Modify: `shared/src/androidMain/kotlin/com/mrturingdev/ssclassify/data/ThumbnailLoader.android.kt`
+- Modify: `shared/src/iosMain/kotlin/com/mrturingdev/ssclassify/data/ThumbnailLoader.ios.kt`
 
 **Interfaces:**
 - Consumes: `id: String`, `sizePx: Int`.
@@ -297,7 +297,7 @@ git commit -m "feat(shared): add ScreenshotContentSummarizer for digest and high
 
 - [ ] **Step 1: Inspect and update cache key logic in `ThumbnailLoader.android.kt`**
 
-In `shared/src/androidMain/kotlin/com/agy/imagecategorizer/data/ThumbnailLoader.android.kt`:
+In `shared/src/androidMain/kotlin/com/mrturingdev/ssclassify/data/ThumbnailLoader.android.kt`:
 Update `cache` key to include `sizePx`:
 ```kotlin
     actual suspend fun load(id: String, sizePx: Int): ImageBitmap? = withContext(Dispatchers.IO) {
@@ -319,7 +319,7 @@ And in `computeSampleSize`:
 
 - [ ] **Step 2: Update `ThumbnailLoader.ios.kt` similarly**
 
-In `shared/src/iosMain/kotlin/com/agy/imagecategorizer/data/ThumbnailLoader.ios.kt`:
+In `shared/src/iosMain/kotlin/com/mrturingdev/ssclassify/data/ThumbnailLoader.ios.kt`:
 Update cache lookup:
 ```kotlin
     actual suspend fun load(id: String, sizePx: Int): ImageBitmap? = mutex.withLock {
@@ -338,7 +338,7 @@ Expected: PASS.
 - [ ] **Step 4: Commit**
 
 ```bash
-git add shared/src/androidMain/kotlin/com/agy/imagecategorizer/data/ThumbnailLoader.android.kt shared/src/iosMain/kotlin/com/agy/imagecategorizer/data/ThumbnailLoader.ios.kt
+git add shared/src/androidMain/kotlin/com/mrturingdev/ssclassify/data/ThumbnailLoader.android.kt shared/src/iosMain/kotlin/com/mrturingdev/ssclassify/data/ThumbnailLoader.ios.kt
 git commit -m "fix(shared): make ThumbnailLoader cache resolution-aware for high-res viewing"
 ```
 
@@ -347,7 +347,7 @@ git commit -m "fix(shared): make ThumbnailLoader cache resolution-aware for high
 ### Task 4: Build `FullscreenImageViewer` Component
 
 **Files:**
-- Create: `shared/src/commonMain/kotlin/com/agy/imagecategorizer/ui/FullscreenImageViewer.kt`
+- Create: `shared/src/commonMain/kotlin/com/mrturingdev/ssclassify/ui/FullscreenImageViewer.kt`
 
 **Interfaces:**
 - Produces:
@@ -355,7 +355,7 @@ git commit -m "fix(shared): make ThumbnailLoader cache resolution-aware for high
 
 - [ ] **Step 1: Write `FullscreenImageViewer.kt`**
 
-Create `shared/src/commonMain/kotlin/com/agy/imagecategorizer/ui/FullscreenImageViewer.kt`:
+Create `shared/src/commonMain/kotlin/com/mrturingdev/ssclassify/ui/FullscreenImageViewer.kt`:
 Implement zoomable viewer using Compose `Modifier.pointerInput` with `detectTransformGestures` and `detectTapGestures` (for double tap to toggle zoom 1x to 2.5x), smooth scale clamping (1f to 5f), pan clamping, and top/bottom HUD overlay with Close button.
 Also loads high-res image (size 2048), falling back immediately to the 320/720 cached bitmap while loading.
 
@@ -367,7 +367,7 @@ Expected: BUILD SUCCESSFUL.
 - [ ] **Step 3: Commit**
 
 ```bash
-git add shared/src/commonMain/kotlin/com/agy/imagecategorizer/ui/FullscreenImageViewer.kt
+git add shared/src/commonMain/kotlin/com/mrturingdev/ssclassify/ui/FullscreenImageViewer.kt
 git commit -m "feat(ui): create FullscreenImageViewer with pinch, pan, and double-tap zoom"
 ```
 
@@ -376,7 +376,7 @@ git commit -m "feat(ui): create FullscreenImageViewer with pinch, pan, and doubl
 ### Task 5: Build `ScreenshotDetailScreen` (Dedicated Full Details Page)
 
 **Files:**
-- Create: `shared/src/commonMain/kotlin/com/agy/imagecategorizer/ui/ScreenshotDetailScreen.kt`
+- Create: `shared/src/commonMain/kotlin/com/mrturingdev/ssclassify/ui/ScreenshotDetailScreen.kt`
 
 **Interfaces:**
 - Produces:
@@ -384,7 +384,7 @@ git commit -m "feat(ui): create FullscreenImageViewer with pinch, pan, and doubl
 
 - [ ] **Step 1: Write `ScreenshotDetailScreen.kt`**
 
-Create `shared/src/commonMain/kotlin/com/agy/imagecategorizer/ui/ScreenshotDetailScreen.kt`:
+Create `shared/src/commonMain/kotlin/com/mrturingdev/ssclassify/ui/ScreenshotDetailScreen.kt`:
 - `Scaffold` with `TopAppBar`: Back navigation icon, title "Screenshot Details", and category icon.
 - `LazyColumn` / `Column` scrollable content:
   1. Hero image card (aspect ratio preserved or height 280.dp), clickable with tap-to-fullscreen hint and fullscreen icon button.
@@ -401,7 +401,7 @@ Expected: BUILD SUCCESSFUL.
 - [ ] **Step 3: Commit**
 
 ```bash
-git add shared/src/commonMain/kotlin/com/agy/imagecategorizer/ui/ScreenshotDetailScreen.kt
+git add shared/src/commonMain/kotlin/com/mrturingdev/ssclassify/ui/ScreenshotDetailScreen.kt
 git commit -m "feat(ui): create ScreenshotDetailScreen with full OCR text and metadata"
 ```
 
@@ -410,7 +410,7 @@ git commit -m "feat(ui): create ScreenshotDetailScreen with full OCR text and me
 ### Task 6: Wire Preview Summaries, Detail Dialog Actions, and Fullscreen in `HomeScreen.kt`
 
 **Files:**
-- Modify: `shared/src/commonMain/kotlin/com/agy/imagecategorizer/ui/HomeScreen.kt`
+- Modify: `shared/src/commonMain/kotlin/com/mrturingdev/ssclassify/ui/HomeScreen.kt`
 
 **Interfaces:**
 - Integrates:
@@ -444,7 +444,7 @@ Expected: BUILD SUCCESSFUL with 100% tests passing.
 - [ ] **Step 5: Commit**
 
 ```bash
-git add shared/src/commonMain/kotlin/com/agy/imagecategorizer/ui/HomeScreen.kt
+git add shared/src/commonMain/kotlin/com/mrturingdev/ssclassify/ui/HomeScreen.kt
 git commit -m "feat(ui): wire preview summary, full details navigation, and fullscreen viewer in HomeScreen"
 ```
 

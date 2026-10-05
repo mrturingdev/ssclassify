@@ -19,7 +19,7 @@ This feature adds:
 ## 2. Architecture & Components
 
 ### 2.1 Pure Kotlin Blank Screen Detector (`BlankScreenDetector.kt`)
-Located in `shared/src/commonMain/kotlin/com/agy/imagecategorizer/classify/BlankScreenDetector.kt`.
+Located in `shared/src/commonMain/kotlin/com/mrturingdev/ssclassify/classify/BlankScreenDetector.kt`.
 - Pure Kotlin, unit-testable in `commonTest`.
 - Works with `ImageContentAnalyzer.PixelSource`.
 - Evaluation criteria:
