@@ -63,6 +63,12 @@ class ScreenshotRepository(
         deleted
     }
 
+    /**
+     * Marks every analyzed screenshot as changed so the next [scan] re-runs
+     * OCR on all of them. Category corrections live in their own table and are kept.
+     */
+    suspend fun markAllForReanalysis() = withContext(Dispatchers.IO) { queries.markAllChanged() }
+
     suspend fun scan(): ScanOutcome = try {
         if (!source.ensureAccess()) {
             ScanOutcome.Failure(PERMISSION_DENIED)

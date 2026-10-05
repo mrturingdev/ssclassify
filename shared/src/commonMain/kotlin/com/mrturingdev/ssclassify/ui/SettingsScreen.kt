@@ -16,6 +16,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
 import androidx.compose.material.icons.rounded.Star
 import androidx.compose.material.icons.rounded.StarOutline
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -28,11 +29,14 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SegmentedButton
 import androidx.compose.material3.SegmentedButtonDefaults
 import androidx.compose.material3.SingleChoiceSegmentedButtonRow
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -55,6 +59,9 @@ fun SettingsScreen(
     onThemeModeChange: (ThemeMode) -> Unit,
     /** Asks the launcher to pin the widget; null when it cannot, so manual steps show instead. */
     pinWidget: (() -> Unit)?,
+    /** How many screenshots are analyzed; the re-analyze button is off when there are none. */
+    libraryCount: Int,
+    onReanalyzeAll: () -> Unit,
     onBack: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -107,6 +114,7 @@ fun SettingsScreen(
         ) {
             ThemeSection(themeMode, onThemeModeChange)
             WidgetSection(pinWidget)
+            LibrarySection(libraryCount, onReanalyzeAll)
             RatingSection()
         }
     }
@@ -167,6 +175,47 @@ private fun WidgetSection(pinWidget: (() -> Unit)?) {
                 }
             }
         }
+    }
+}
+
+@Composable
+private fun LibrarySection(libraryCount: Int, onReanalyzeAll: () -> Unit) {
+    var confirming by rememberSaveable { mutableStateOf(false) }
+    SettingsCard("Library") {
+        Text(
+            "Read every screenshot again with the latest text recognition, titles and categories.",
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        OutlinedButton(
+            onClick = { confirming = true },
+            enabled = libraryCount > 0,
+            shape = RoundedCornerShape(20.dp),
+        ) {
+            Text("Re-analyze all")
+        }
+    }
+    if (confirming) {
+        val noun = if (libraryCount == 1) "screenshot" else "screenshots"
+        AlertDialog(
+            onDismissRequest = { confirming = false },
+            title = { Text("Re-analyze $libraryCount $noun?") },
+            text = {
+                Text(
+                    "This re-runs text recognition on every screenshot and may take a few minutes. " +
+                        "Your category corrections are kept.",
+                )
+            },
+            confirmButton = {
+                TextButton(onClick = {
+                    confirming = false
+                    onReanalyzeAll()
+                }) { Text("Re-analyze") }
+            },
+            dismissButton = {
+                TextButton(onClick = { confirming = false }) { Text("Cancel") }
+            },
+        )
     }
 }
 

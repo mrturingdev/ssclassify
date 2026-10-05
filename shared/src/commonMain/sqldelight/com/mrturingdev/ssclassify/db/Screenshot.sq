@@ -69,6 +69,10 @@ INSERT INTO screenshot VALUES ?;
 deleteById:
 DELETE FROM screenshot WHERE id = ?;
 
+-- Forces the next scan to re-analyze every row (no file has modified time -1).
+markAllChanged:
+UPDATE screenshot SET modified_millis = -1;
+
 search:
 SELECT screenshot.*, category_override.category AS override_category
 FROM screenshot_fts

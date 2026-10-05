@@ -162,6 +162,15 @@ fun App(isPermissionGranted: Boolean = true, pinWidget: (() -> Unit)? = null) {
                     saveThemeMode(it)
                 },
                 pinWidget = pinWidget,
+                libraryCount = (outcome as? ScanOutcome.Success)?.images?.size ?: 0,
+                onReanalyzeAll = {
+                    scope.launch {
+                        repository.markAllForReanalysis()
+                        // Back home, where the usual scan progress shows.
+                        showSettings = false
+                        triggerScan()
+                    }
+                },
                 onBack = { showSettings = false },
                 modifier = Modifier.fillMaxSize(),
             )

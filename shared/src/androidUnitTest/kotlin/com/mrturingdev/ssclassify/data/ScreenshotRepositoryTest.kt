@@ -135,6 +135,24 @@ class ScreenshotRepositoryTest {
     }
 
     @Test
+    fun reanalyzeAllReadsEveryScreenshotAgainAndKeepsCorrections() = runBlocking {
+        val source = FakeSource(listOf(asset("a"), asset("b")), mapOf("a" to "Receipt Subtotal Total Tax", "b" to "invoice"))
+        val repo = repository(source)
+        repo.scan()
+        repo.setCategory("a", ImageCategory.Others)
+        source.analyzed.clear()
+
+        repo.markAllForReanalysis()
+        repo.scan()
+        assertEquals(listOf("a", "b"), source.analyzed.sorted(), "unchanged files are analyzed again")
+        assertEquals(ImageCategory.Others, repo.cached().first { it.id == "a" }.category)
+
+        source.analyzed.clear()
+        repo.scan()
+        assertEquals(emptyList(), source.analyzed, "the next scan is incremental again")
+    }
+
+    @Test
     fun categoryCorrectionSurvivesReanalysisAndResets() = runBlocking {
         val source = FakeSource(listOf(asset("a")), mapOf("a" to "Receipt Subtotal Total Tax"))
         val repo = repository(source)
