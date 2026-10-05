@@ -720,6 +720,70 @@ android_instrumented_test() {
   done
 }
 
+# ── Scroll jank benchmark (:classyBenchmark) ─────────────────────────────────
+BENCH_PKG="com.mrturingdev.ssclassify.benchmark"
+BENCH_RUNNER="${BENCH_PKG}/androidx.test.runner.AndroidJUnitRunner"
+BENCH_DEVICE_DIR="/sdcard/Android/media/${BENCH_PKG}"
+
+# Some OEM ROMs (MIUI/HyperOS) randomly cancel USB installs, so retry each APK.
+_adb_install_retry() {
+  local serial="$1" apk="$2" out
+  for attempt in 1 2 3 4 5 6 7 8; do
+    out=$(adb -s "$serial" install -r -t "$apk" 2>&1 | tail -1)
+    if [[ "$out" == "Success" ]]; then
+      printf "  ${GREEN}${TICK}${RESET} Installed %s\n" "$(basename "$apk")"
+      return 0
+    fi
+    printf "  ${YELLOW}Install attempt %d failed: %s${RESET}\n" "$attempt" "$out"
+    # Only the ROM's random cancellation is worth retrying.
+    [[ "$out" == *INSTALL_FAILED_USER_RESTRICTED* ]] || return 1
+    sleep 3
+  done
+  return 1
+}
+
+# Builds, installs and runs ScrollJankBenchmark on one device; pulls results + Perfetto traces.
+# Installs with adb rather than connectedBenchmarkAndroidTest, which fails on a single
+# cancelled install and uninstalls the app afterwards.
+benchmark_scroll() {
+  local serial="$1"
+  local out_dir="classyBenchmark/build/outputs/scroll-jank/${serial}"
+  ./gradlew :androidApp:assembleBenchmark :classyBenchmark:assembleBenchmark || return
+  _adb_install_retry "$serial" androidApp/build/outputs/apk/benchmark/androidApp-benchmark.apk || return
+  _adb_install_retry "$serial" classyBenchmark/build/outputs/apk/benchmark/classyBenchmark-benchmark.apk || return
+  adb -s "$serial" shell rm -rf "${BENCH_DEVICE_DIR}/*"
+
+  local args=()
+  if [[ "$serial" == emulator-* ]]; then
+    # Macrobenchmark refuses emulators by default; allow it as a smoke test of the flow.
+    args=(-e androidx.benchmark.suppressErrors EMULATOR)
+    printf "\n  ${YELLOW}Emulator: checks the flow only. Frame numbers are not meaningful; use a physical device.${RESET}\n"
+  fi
+
+  printf "\n  ${DIM}Running on device (~5 min; the first run also scans the screenshots). Leave the screen on.${RESET}\n\n"
+  local log; log=$(adb -s "$serial" shell am instrument -w "${args[@]}" "$BENCH_RUNNER" 2>&1)
+
+  mkdir -p "$out_dir"
+  printf "%s\n" "$log" > "${out_dir}/instrument.log"
+  adb -s "$serial" pull "${BENCH_DEVICE_DIR}/." "$out_dir" >/dev/null 2>&1
+
+  # Frame overrun = how late a frame was vs its deadline (negative = on time).
+  printf "%s\n" "$log" | awk -F'[=:]' '/^INSTRUMENTATION_STATUS: ([A-Z]+_)?frame_(overrun|duration_cpu)_millis_p/ {
+    gsub(/ /, "", $2); printf "  %-34s %7.1f ms\n", $2, $3 }'
+  printf "\n  ${DIM}Results and traces: %s${RESET}\n" "$out_dir"
+  if ! grep -q "^OK (" <<< "$log"; then
+    printf "%s\n" "$log" | grep -E "Exception|Error|FAILURES" | head -5
+    return 1
+  fi
+}
+
+android_benchmark() {
+  _pick_android_targets "Benchmark on which device(s)?" "yes" || return
+  for serial in "${ANDROID_SERIALS[@]}"; do
+    run_cmd "Scroll Jank Benchmark → ${serial}" benchmark_scroll "$serial"
+  done
+}
+
 android_lint() {
   run_cmd "Android Lint" ./gradlew :androidApp:lintDebug
 }
@@ -754,6 +818,7 @@ android_menu() {
     "🧪  Unit Tests (Select / All)"
     "🔬  Instrumented Tests (device)"
     "📲  Install Debug on Device(s)"
+    "📈  Scroll Jank Benchmark (device)"
     "🔍  Lint Check"
     "← Back"
   )
@@ -765,8 +830,9 @@ android_menu() {
       2) test_suite_menu ;;
       3) android_instrumented_test ;;
       4) android_install ;;
-      5) android_lint ;;
-      6) return ;;
+      5) android_benchmark ;;
+      6) android_lint ;;
+      7) return ;;
     esac
   done
 }
@@ -834,4 +900,14 @@ main() {
   done
 }
 
-[[ "${BASH_SOURCE[0]}" == "${0}" ]] && main
+if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
+  case "${1:-}" in
+    # Non-interactive: ./dev.sh benchmark [serial]  (defaults to the only connected device)
+    benchmark)
+      trap - EXIT INT TERM  # no TUI to restore
+      serial="${2:-${ANDROID_SERIAL:-$(_android_devices | head -1 | cut -d'|' -f1)}}"
+      [[ -z "$serial" ]] && { echo "No Android device connected." >&2; exit 1; }
+      benchmark_scroll "$serial"; exit $? ;;
+    *) main ;;
+  esac
+fi
