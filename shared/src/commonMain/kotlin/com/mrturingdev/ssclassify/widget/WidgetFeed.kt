@@ -50,7 +50,7 @@ object WidgetFeed {
 
     private fun ImageRecord.toWidgetItem(): WidgetItem {
         // Same caption rules as ImageCard in HomeScreen.
-        val summary = ScreenshotContentSummarizer.summarizeDigest(ocrText, description)
+        val summary = ScreenshotContentSummarizer.previewText(this)
         return WidgetItem(
             id = id,
             badge = subCategory?.takeIf { it.isNotEmpty() },

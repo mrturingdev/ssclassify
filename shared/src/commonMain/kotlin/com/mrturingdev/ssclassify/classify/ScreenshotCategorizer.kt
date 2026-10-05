@@ -22,55 +22,45 @@ object ScreenshotCategorizer {
         ImageCategory.Receipts to listOf(
             "receipt", "invoice", "subtotal", "sub total", "grand total", "total", "tax", "vat",
             "amount due", "amount paid", "paid", "bill", "transaction id", "order id", "txn",
+            "statement", "payment", "bank transfer", "credit card", "debit",
         ),
-        ImageCategory.Finance to listOf(
-            "bank", "balance", "account", "transfer", "deposit", "withdraw", "credit card",
-            "debit", "statement", "esewa", "khalti", "upi", "paypal", "loan", "interest",
-            "stock", "stocks", "portfolio", "crypto", "bitcoin", "npr", "usd",
+        ImageCategory.QR to listOf(
+            "qr code", "qr", "qrcode", "scan qr", "barcode", "scan code", "scan to pay", "scanner",
         ),
-        ImageCategory.Shopping to listOf(
-            "cart", "add to cart", "buy now", "checkout", "price", "sale", "discount", "coupon",
-            "shipping", "free delivery", "amazon", "daraz", "ebay", "aliexpress", "wishlist",
-            "in stock", "out of stock",
+        ImageCategory.Learning to listOf(
+            "tutorial", "lesson", "course", "class", "lecture", "assignment", "homework",
+            "syllabus", "exam", "quiz", "test", "study", "flashcard", "textbook", "book",
+            "chapter", "duolingo", "coursera", "udemy", "edx", "quizlet", "definition",
+            "explanation", "formula", "theorem", "code", "python", "javascript", "kotlin",
+            "java", "html", "css", "function", "algorithm", "git", "github", "stack trace",
+            "public class", "exception in thread", "void", "return", "import", "npm",
         ),
-        ImageCategory.Travel to listOf(
+        ImageCategory.Travels to listOf(
             "flight", "boarding", "boarding pass", "gate", "seat", "departure", "arrival",
             "airline", "airport", "hotel", "booking", "check-in", "check in", "reservation",
-            "itinerary", "pnr", "train", "bus", "uber", "pathao", "indrive", "directions", "visa",
+            "itinerary", "pnr", "train", "bus", "uber", "pathao", "indrive", "directions",
+            "visa", "ticket", "trip", "travel", "destination", "passport", "terminal",
         ),
-        ImageCategory.Food to listOf(
+        ImageCategory.Foods to listOf(
             "menu", "restaurant", "recipe", "ingredients", "foodmandu", "pizza", "burger",
-            "coffee", "momo", "breakfast", "lunch", "dinner", "cafe", "dine",
+            "coffee", "momo", "breakfast", "lunch", "dinner", "cafe", "dine", "food",
+            "dish", "cuisine", "snack", "drink", "beverage", "bakery", "cooking", "dessert",
+            "meal",
         ),
         ImageCategory.Health to listOf(
             "doctor", "hospital", "clinic", "prescription", "medicine", "dose", "mg",
             "heart rate", "calories", "workout", "steps", "blood", "vaccine", "pharmacy",
-            "symptoms", "sleep",
+            "symptoms", "sleep", "fitness", "gym", "medical", "patient", "pulse", "bpm",
+            "health", "exercise",
         ),
-        ImageCategory.Work to listOf(
-            "meeting", "agenda", "deadline", "slack", "jira", "zoom", "teams", "calendar",
-            "sprint", "standup", "stand-up", "project", "invite", "schedule", "outlook",
-            "confluence", "manager", "task",
-        ),
-        ImageCategory.Code to listOf(
-            "function", "class", "return", "import", "def", "const", "val", "var", "public",
-            "void", "exception", "stack trace", "traceback", "npm", "git", "console",
-            "null", "undefined", "localhost", "select", "kotlin", "python", "java",
-            "gradle", "compile", "error:",
-        ),
-        ImageCategory.Chat to listOf(
+        ImageCategory.Others to listOf(
             "whatsapp", "messenger", "telegram", "viber", "signal", "imessage", "wechat",
             "typing", "online", "last seen", "delivered", "seen", "message", "messages",
-            "reply", "sent",
-        ),
-        ImageCategory.Social to listOf(
-            "instagram", "facebook", "twitter", "tiktok", "reddit", "linkedin", "threads",
-            "youtube", "likes", "followers", "following", "retweet", "repost", "comments",
-            "upvote", "subscribe", "story", "reels",
-        ),
-        ImageCategory.Documents to listOf(
-            "pdf", "page", "document", "section", "chapter", "article", "terms",
-            "policy", "form", "certificate", "signature", "notice", "application",
+            "reply", "sent", "instagram", "facebook", "twitter", "tiktok", "reddit",
+            "linkedin", "threads", "youtube", "likes", "followers", "following", "retweet",
+            "repost", "comments", "upvote", "subscribe", "story", "reels", "meeting",
+            "agenda", "deadline", "slack", "jira", "zoom", "teams", "calendar", "sprint",
+            "standup", "stand-up", "project", "invite", "schedule", "outlook", "confluence",
         ),
     )
 
@@ -84,9 +74,12 @@ object ScreenshotCategorizer {
     }
 
     /** Picks the category with the most keyword hits; ties go to declaration order. */
-    fun categorize(text: String, name: String = ""): ImageCategory {
+    fun categorize(text: String, name: String = "", subCategory: String? = null): ImageCategory {
+        if (subCategory?.contains("qr", ignoreCase = true) == true) {
+            return ImageCategory.QR
+        }
         val haystack = "$name $text".lowercase().replace('_', ' ')
-        var best = ImageCategory.Other
+        var best = ImageCategory.Uncategorized
         var bestHits = 0
         for ((category, pattern) in patterns) {
             val hits = pattern.findAll(haystack).count()

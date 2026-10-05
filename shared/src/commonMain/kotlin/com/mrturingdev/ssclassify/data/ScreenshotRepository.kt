@@ -130,7 +130,7 @@ class ScreenshotRepository(
 
     private fun Row.toRecord(learner: CorrectionLearner): ImageRecord {
         val learned = learner.categorize(doc)
-        val auto = learned ?: ScreenshotCategorizer.categorize(filtered, name)
+        val auto = learned ?: ScreenshotCategorizer.categorize(filtered, name, sub_category)
         return ImageRecord(
             id = id,
             name = name,
@@ -172,8 +172,16 @@ class ScreenshotRepository(
         val object_source: String?,
         override_category: String?,
     ) {
-        // An override naming a category that no longer exists falls back to automatic.
-        val override: ImageCategory? = ImageCategory.entries.firstOrNull { it.name == override_category }
+        // An override naming a category that no longer exists falls back to automatic, or maps from legacy names.
+        val override: ImageCategory? = ImageCategory.entries.firstOrNull { it.name.equals(override_category, ignoreCase = true) }
+            ?: when (override_category) {
+                "Travel" -> ImageCategory.Travels
+                "Food" -> ImageCategory.Foods
+                "Other" -> ImageCategory.Uncategorized
+                "Code", "Documents" -> ImageCategory.Learning
+                "Chat", "Social", "Work" -> ImageCategory.Others
+                else -> null
+            }
 
         // Rows from before v4 have no positioned lines; clean their text until the rescan replaces it.
         val filtered: String = filtered_text ?: OcrTextProcessor.cleanText(ocr_text)

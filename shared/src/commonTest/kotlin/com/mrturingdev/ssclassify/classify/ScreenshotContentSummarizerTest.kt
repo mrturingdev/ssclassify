@@ -76,4 +76,71 @@ class ScreenshotContentSummarizerTest {
         assertTrue(digest.endsWith("..."))
         assertTrue(digest.length <= 90)
     }
+
+    @Test
+    fun extractsCompanyNameFromLabeledMerchantField() {
+        val ocr = """
+            Scan & Pay
+            Merchant: Himalayan Java Coffee
+            Fonepay Accepted Here
+            Terminal ID: 88712
+        """.trimIndent()
+        val company = ScreenshotContentSummarizer.extractCompanyName(ocr)
+        assertEquals("Himalayan Java Coffee", company)
+    }
+
+    @Test
+    fun extractsCompanyNameWithCorporateSuffix() {
+        val ocr = """
+            Scan to Pay
+            Bhatbhateni Supermarket Pvt. Ltd.
+            Merchant ID: 12345
+        """.trimIndent()
+        val company = ScreenshotContentSummarizer.extractCompanyName(ocr)
+        assertEquals("Bhatbhateni Supermarket Pvt. Ltd.", company)
+    }
+
+    @Test
+    fun extractsCompanyNameWithBusinessKeyword() {
+        val ocr = """
+            Roadhouse Cafe
+            Scan QR Code
+            Any Bank App Accepted
+        """.trimIndent()
+        val company = ScreenshotContentSummarizer.extractCompanyName(ocr)
+        assertEquals("Roadhouse Cafe", company)
+    }
+
+    @Test
+    fun returnsNullCompanyNameWhenOnlyGenericQrTokensPresent() {
+        val ocr = """
+            Scan to Pay
+            Fonepay
+            Accepted Here
+            Mobile Banking
+        """.trimIndent()
+        val company = ScreenshotContentSummarizer.extractCompanyName(ocr)
+        assertEquals(null, company)
+    }
+
+    @Test
+    fun previewTextUsesCompanyNameForQrCode() {
+        val ocr = """
+            Scan & Pay
+            Payee: Everest Bakery
+            Scan here
+        """.trimIndent()
+        val preview = ScreenshotContentSummarizer.previewText(ocrText = ocr, isQr = true)
+        assertEquals("Everest Bakery", preview)
+    }
+
+    @Test
+    fun previewTextFallsBackToDigestForQrCodeWithoutCompanyName() {
+        val ocr = """
+            Scan & Pay
+            Quick Payment System
+        """.trimIndent()
+        val preview = ScreenshotContentSummarizer.previewText(ocrText = ocr, isQr = true)
+        assertTrue(preview.contains("Quick Payment System"))
+    }
 }

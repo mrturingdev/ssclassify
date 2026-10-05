@@ -50,7 +50,7 @@ class ScreenshotRepositoryTest {
 
         val first = assertIs<ScanOutcome.Success>(repo.scan()).images
         assertEquals(listOf("a", "b"), first.map { it.id })
-        assertEquals(listOf(ImageCategory.Travel, ImageCategory.Receipts), first.map { it.category })
+        assertEquals(listOf(ImageCategory.Travels, ImageCategory.Receipts), first.map { it.category })
         assertEquals(listOf("a", "b"), source.analyzed)
 
         source.analyzed.clear()
@@ -62,7 +62,7 @@ class ScreenshotRepositoryTest {
         val third = assertIs<ScanOutcome.Success>(repo.scan()).images
         assertEquals(listOf("a", "c"), source.analyzed)
         assertEquals(listOf("c", "a"), third.map { it.id }, "deleted 'b' is gone, newest first")
-        assertEquals(listOf(ImageCategory.Other, ImageCategory.Code), third.map { it.category })
+        assertEquals(listOf(ImageCategory.Uncategorized, ImageCategory.Learning), third.map { it.category })
         assertEquals(third, repo.cached())
     }
 
@@ -139,24 +139,24 @@ class ScreenshotRepositoryTest {
         repo.scan()
         assertEquals(ImageCategory.Receipts, repo.cached().single().category)
 
-        repo.setCategory("a", ImageCategory.Work)
+        repo.setCategory("a", ImageCategory.Others)
         val corrected = repo.cached().single()
-        assertEquals(ImageCategory.Work, corrected.category)
+        assertEquals(ImageCategory.Others, corrected.category)
         assertEquals(ImageCategory.Receipts, corrected.autoCategory)
         assertEquals(true, corrected.isCategoryCorrected)
-        assertEquals(ImageCategory.Work, repo.search("receipt").single().category, "search sees corrections")
+        assertEquals(ImageCategory.Others, repo.search("receipt").single().category, "search sees corrections")
 
         // The file changes and is re-analyzed: the user's pick still wins.
         source.assets = listOf(asset("a", modified = 2))
         source.text = mapOf("a" to "Flight Gate Boarding")
         repo.scan()
         val reanalyzed = repo.cached().single()
-        assertEquals(ImageCategory.Work, reanalyzed.category)
-        assertEquals(ImageCategory.Travel, reanalyzed.autoCategory)
+        assertEquals(ImageCategory.Others, reanalyzed.category)
+        assertEquals(ImageCategory.Travels, reanalyzed.autoCategory)
 
         repo.setCategory("a", null)
         val reset = repo.cached().single()
-        assertEquals(ImageCategory.Travel, reset.category)
+        assertEquals(ImageCategory.Travels, reset.category)
         assertEquals(false, reset.isCategoryCorrected)
     }
 
@@ -165,7 +165,7 @@ class ScreenshotRepositoryTest {
         val source = FakeSource(listOf(asset("a")), mapOf("a" to "invoice"))
         val repo = repository(source)
         repo.scan()
-        repo.setCategory("a", ImageCategory.Food)
+        repo.setCategory("a", ImageCategory.Foods)
 
         source.assets = emptyList()
         repo.scan()

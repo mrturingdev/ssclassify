@@ -114,7 +114,7 @@ fun ScreenshotDetailScreen(
                             tint = MaterialTheme.colorScheme.primary,
                         )
                         Text(
-                            text = "Screenshot Details",
+                            text = image.name,
                             style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.SemiBold),
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis,
@@ -160,6 +160,14 @@ fun ScreenshotDetailScreen(
                 image = image,
                 thumbnailLoader = thumbnailLoader,
                 onOpenFullscreen = onOpenFullscreen,
+            )
+
+            // Image Title / File Name
+            Text(
+                text = image.name,
+                style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
+                color = MaterialTheme.colorScheme.onSurface,
+                modifier = Modifier.padding(horizontal = 4.dp),
             )
 
             // 2. Category Row Card
@@ -388,6 +396,13 @@ private fun MetadataCard(image: ImageRecord) {
                 style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.SemiBold),
                 color = MaterialTheme.colorScheme.onSurface,
             )
+
+            MetadataRow(
+                icon = Icons.Rounded.Description,
+                label = "File Name",
+                value = image.name,
+            )
+            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f))
 
             if (!image.subCategory.isNullOrBlank()) {
                 MetadataRow(

@@ -1,17 +1,31 @@
 package com.mrturingdev.ssclassify.ui
 
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.size
+import androidx.compose.material3.Text
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.StrokeJoin
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.semantics.clearAndSetSemantics
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import image_categorizer.shared.generated.resources.Res
+import image_categorizer.shared.generated.resources.quicksand_semibold
+import org.jetbrains.compose.resources.Font
 
 /**
  * Official App Logo for S.S. Classify (Variant 3: The Viewfinder Twin-S).
@@ -78,15 +92,7 @@ fun AppLogo(
         drawPath(blPath, accentColor.copy(alpha = 0.85f), style = bracketStroke)
 
         // 2. Left S Monogram (Primary Brand Color)
-        val leftSPath = Path().apply {
-            moveTo(44f * scaleX, 34f * scaleY)
-            cubicTo(37f * scaleX, 34f * scaleY, 33f * scaleX, 37.5f * scaleY, 33f * scaleX, 42f * scaleY)
-            cubicTo(33f * scaleX, 47.5f * scaleY, 41f * scaleX, 49f * scaleY, 45f * scaleX, 51f * scaleY)
-            cubicTo(49f * scaleX, 53f * scaleY, 51f * scaleX, 55.5f * scaleY, 51f * scaleX, 59f * scaleY)
-            cubicTo(51f * scaleX, 64f * scaleY, 46.5f * scaleX, 67f * scaleY, 40f * scaleX, 67f * scaleY)
-            cubicTo(34.5f * scaleX, 67f * scaleY, 31f * scaleX, 63.5f * scaleY, 30f * scaleX, 60f * scaleY)
-        }
-        drawPath(leftSPath, primaryColor, style = monogramStroke)
+        drawPath(logoS(scaleX, 30f * scaleX, 34f * scaleY), primaryColor, style = monogramStroke)
 
         // 3. Right S Monogram (Interlocked, Accent / Primary color)
         val rightSPath = Path().apply {
@@ -98,5 +104,58 @@ fun AppLogo(
             cubicTo(68f * scaleX, 66f * scaleY, 72f * scaleX, 63f * scaleY, 73f * scaleX, 59f * scaleY)
         }
         drawPath(rightSPath, accentColor, style = monogramStroke)
+    }
+}
+
+/**
+ * The logo's left S as a glyph: 21 x 33 units at [scale], top-left corner at ([dx], [dy]).
+ */
+private fun logoS(scale: Float, dx: Float, dy: Float) = Path().apply {
+    fun x(v: Float) = dx + (v - 30f) * scale
+    fun y(v: Float) = dy + (v - 34f) * scale
+    moveTo(x(44f), y(34f))
+    cubicTo(x(37f), y(34f), x(33f), y(37.5f), x(33f), y(42f))
+    cubicTo(x(33f), y(47.5f), x(41f), y(49f), x(45f), y(51f))
+    cubicTo(x(49f), y(53f), x(51f), y(55.5f), x(51f), y(59f))
+    cubicTo(x(51f), y(64f), x(46.5f), y(67f), x(40f), y(67f))
+    cubicTo(x(34.5f), y(67f), x(31f), y(63.5f), x(30f), y(60f))
+}
+
+/**
+ * "S.S. Classify" wordmark: the S's are drawn with the logo's S glyph, sized and weighted
+ * to match Quicksand SemiBold (cap height 0.7em, stem 0.1em, period 0.114em) used for "Classify".
+ */
+@Composable
+fun AppWordmark(
+    modifier: Modifier = Modifier,
+    fontSize: TextUnit = 20.sp,
+    primaryColor: Color = MaterialTheme.colorScheme.primary,
+    accentColor: Color = MaterialTheme.colorScheme.onSurface,
+) {
+    val em = with(LocalDensity.current) { fontSize.toDp() }
+    Row(
+        modifier = modifier.clearAndSetSemantics { contentDescription = "S.S. Classify" },
+        horizontalArrangement = Arrangement.spacedBy(em * 0.22f),
+    ) {
+        // Bottom edge sits on the text baseline.
+        Canvas(Modifier.size(em * 1.516f, em * 0.7f).alignBy { it.measuredHeight }) {
+            val e = size.height / 0.7f
+            val stem = 0.1f * e
+            val stroke = Stroke(width = stem, cap = StrokeCap.Round, join = StrokeJoin.Round)
+            val scale = (0.7f * e - stem) / 33f
+            val dotY = size.height - 0.063f * e
+            drawPath(logoS(scale, 0.10f * e, stem / 2), primaryColor, style = stroke)
+            drawCircle(accentColor, radius = 0.057f * e, center = Offset(0.645f * e, dotY))
+            drawPath(logoS(scale, 0.858f * e, stem / 2), accentColor, style = stroke)
+            drawCircle(accentColor, radius = 0.057f * e, center = Offset(1.403f * e, dotY))
+        }
+        Text(
+            "Classify",
+            modifier = Modifier.alignByBaseline(),
+            color = accentColor,
+            fontSize = fontSize,
+            fontFamily = FontFamily(Font(Res.font.quicksand_semibold, FontWeight.SemiBold)),
+            fontWeight = FontWeight.SemiBold,
+        )
     }
 }

@@ -32,25 +32,57 @@ class ScreenshotCategorizerTest {
     }
 
     @Test
-    fun travelText() {
+    fun qrDetection() {
         assertEquals(
-            ImageCategory.Travel,
+            ImageCategory.QR,
+            ScreenshotCategorizer.categorize("Scan QR code to pay at merchant counter"),
+        )
+        assertEquals(
+            ImageCategory.QR,
+            ScreenshotCategorizer.categorize(text = "", name = "Screenshot_2026.png", subCategory = "QR Code"),
+        )
+    }
+
+    @Test
+    fun learningText() {
+        assertEquals(
+            ImageCategory.Learning,
+            ScreenshotCategorizer.categorize("fun main() {\n  val x = null\n  return x\n}\nException in thread main"),
+        )
+        assertEquals(
+            ImageCategory.Learning,
+            ScreenshotCategorizer.categorize("Course Chapter 1: Introduction to Machine Learning Lecture Quiz"),
+        )
+    }
+
+    @Test
+    fun travelsText() {
+        assertEquals(
+            ImageCategory.Travels,
             ScreenshotCategorizer.categorize("Boarding pass KTM to DEL Flight YT 123 Gate 4 Seat 12A Departure 10:30"),
         )
     }
 
     @Test
-    fun codeText() {
+    fun foodsText() {
         assertEquals(
-            ImageCategory.Code,
-            ScreenshotCategorizer.categorize("fun main() {\n  val x = null\n  return x\n}\nException in thread main"),
+            ImageCategory.Foods,
+            ScreenshotCategorizer.categorize("Dinner menu: pizza, burger, momo and coffee at Himalayan Java"),
         )
     }
 
     @Test
-    fun chatFromSamsungFileNameSuffix() {
+    fun healthText() {
         assertEquals(
-            ImageCategory.Chat,
+            ImageCategory.Health,
+            ScreenshotCategorizer.categorize("Doctor prescription: 500mg paracetamol dose twice daily. Heart rate 72 bpm"),
+        )
+    }
+
+    @Test
+    fun othersFromSamsungFileNameSuffix() {
+        assertEquals(
+            ImageCategory.Others,
             ScreenshotCategorizer.categorize(text = "", name = "Screenshot_20260101-120000_WhatsApp.jpg"),
         )
     }
@@ -58,11 +90,11 @@ class ScreenshotCategorizerTest {
     @Test
     fun keywordsMatchWholeWordsOnly() {
         // "total" inside "totally", "bill" inside "billion", "gate" inside "navigate"
-        assertEquals(ImageCategory.Other, ScreenshotCategorizer.categorize("totally a billion ways to navigate"))
+        assertEquals(ImageCategory.Uncategorized, ScreenshotCategorizer.categorize("totally a billion ways to navigate"))
     }
 
     @Test
     fun emptyTextIsUncategorized() {
-        assertEquals(ImageCategory.Other, ScreenshotCategorizer.categorize(""))
+        assertEquals(ImageCategory.Uncategorized, ScreenshotCategorizer.categorize(""))
     }
 }

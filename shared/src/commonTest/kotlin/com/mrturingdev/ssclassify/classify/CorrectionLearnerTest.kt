@@ -53,7 +53,7 @@ class CorrectionLearnerTest {
         val gymYogaAgain = doc("gym3", "Pulse Fitness Club membership renewal Yoga class Tuesday 6pm Trainer Anita Studio 2")
         val learner = CorrectionLearner(
             library + gymYogaAgain,
-            listOf(Correction(gymYoga, ImageCategory.Health), Correction(gymZumba, ImageCategory.Work)),
+            listOf(Correction(gymYoga, ImageCategory.Health), Correction(gymZumba, ImageCategory.Others)),
         )
         assertEquals(ImageCategory.Health, learner.categorize(gymYogaAgain))
     }

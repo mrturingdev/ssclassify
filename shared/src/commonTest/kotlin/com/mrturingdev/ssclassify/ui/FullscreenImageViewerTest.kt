@@ -18,7 +18,7 @@ class FullscreenImageViewerTest {
         width = width,
         height = height,
         dateMillis = 1000L,
-        category = ImageCategory.Other,
+        category = ImageCategory.Uncategorized,
         source = CategorySource.Rules,
     )
 

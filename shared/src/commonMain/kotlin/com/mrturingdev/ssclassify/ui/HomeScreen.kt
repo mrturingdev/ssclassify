@@ -1,9 +1,11 @@
 package com.mrturingdev.ssclassify.ui
 
-import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -18,25 +20,31 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyRow
-import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.lazy.grid.rememberLazyGridState
+import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.layout.LazyLayoutCacheWindow
+import androidx.compose.foundation.pager.HorizontalPager
+import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.BasicTextField
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.rounded.ArrowBack
 import androidx.compose.material.icons.automirrored.rounded.ArrowForward
 import androidx.compose.material.icons.automirrored.rounded.ReceiptLong
-import androidx.compose.material.icons.rounded.AccountBalance
 import androidx.compose.material.icons.rounded.ArrowDropDown
 import androidx.compose.material.icons.rounded.AutoAwesome
+import androidx.compose.material.icons.rounded.Category
 import androidx.compose.material.icons.rounded.Check
-import androidx.compose.material.icons.rounded.ChatBubbleOutline
+import androidx.compose.material.icons.rounded.CheckCircle
 import androidx.compose.material.icons.rounded.CleaningServices
 import androidx.compose.material.icons.rounded.Close
-import androidx.compose.material.icons.rounded.Code
 import androidx.compose.material.icons.rounded.Delete
 import androidx.compose.material.icons.rounded.Description
 import androidx.compose.material.icons.rounded.Download
@@ -45,18 +53,15 @@ import androidx.compose.material.icons.rounded.Flight
 import androidx.compose.material.icons.rounded.FolderOpen
 import androidx.compose.material.icons.rounded.Fullscreen
 import androidx.compose.material.icons.rounded.LocalHospital
-import androidx.compose.material.icons.rounded.People
 import androidx.compose.material.icons.rounded.PhotoCamera
+import androidx.compose.material.icons.rounded.QrCodeScanner
 import androidx.compose.material.icons.rounded.RadioButtonUnchecked
-import androidx.compose.material.icons.rounded.CheckCircle
 import androidx.compose.material.icons.rounded.Refresh
 import androidx.compose.material.icons.rounded.Restaurant
+import androidx.compose.material.icons.rounded.School
 import androidx.compose.material.icons.rounded.Screenshot
 import androidx.compose.material.icons.rounded.Search
-import androidx.compose.material.icons.rounded.Settings
 import androidx.compose.material.icons.rounded.Share
-import androidx.compose.material.icons.rounded.ShoppingCart
-import androidx.compose.material.icons.rounded.Work
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -66,15 +71,15 @@ import androidx.compose.material3.CenterAlignedTopAppBar
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.FilterChip
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
-import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -84,22 +89,27 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
-import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.Modifier
+import kotlinx.coroutines.launch
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ImageBitmap
+import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.layout.ContentScale
-import androidx.compose.foundation.text.KeyboardActions
-import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -190,24 +200,18 @@ fun HomeScreen(
         Scaffold(
             topBar = {
                 CenterAlignedTopAppBar(
-                    title = {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(8.dp),
-                        ) {
-                            AppLogo(size = 22.dp)
-                            Text(
-                                "S.S. Classify",
-                                style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.SemiBold),
+                    title = { AppWordmark() },
+                    navigationIcon = {
+                        IconButton(onClick = onOpenSettings) {
+                            AppLogo(
+                                size = 28.dp,
+                                modifier = Modifier.semantics { contentDescription = "Settings" },
                             )
                         }
                     },
                     actions = {
                         IconButton(onClick = onScan, enabled = !scanning) {
                             Icon(Icons.Rounded.Refresh, contentDescription = "Rescan")
-                        }
-                        IconButton(onClick = onOpenSettings) {
-                            Icon(Icons.Rounded.Settings, contentDescription = "Settings")
                         }
                     },
                     colors = TopAppBarDefaults.topAppBarColors(
@@ -306,26 +310,53 @@ private const val CLEANUP_SUB_UNCAT = "uncategorized"
 @Composable
 private fun SearchField(query: String, onQueryChange: (String) -> Unit) {
     val focusManager = LocalFocusManager.current
-    OutlinedTextField(
+    val interactionSource = remember { MutableInteractionSource() }
+    val shape = RoundedCornerShape(12.dp)
+    val colors = OutlinedTextFieldDefaults.colors()
+    // BasicTextField + the outlined decoration: OutlinedTextField enforces a 56dp minimum height.
+    BasicTextField(
         value = query,
         onValueChange = onQueryChange,
         modifier = Modifier
             .fillMaxWidth()
-            .padding(start = 16.dp, end = 16.dp, top = 12.dp),
-        placeholder = { Text("Search text in screenshots") },
-        leadingIcon = { Icon(Icons.Rounded.Search, contentDescription = null) },
-        trailingIcon = {
-            if (query.isNotEmpty()) {
-                IconButton(onClick = { onQueryChange("") }) {
-                    Icon(Icons.Rounded.Close, contentDescription = "Clear search")
-                }
-            }
-        },
+            .padding(start = 16.dp, end = 16.dp, top = 12.dp)
+            .height(44.dp),
         singleLine = true,
-        shape = RoundedCornerShape(12.dp),
+        textStyle = MaterialTheme.typography.bodyLarge.copy(color = MaterialTheme.colorScheme.onSurface),
+        cursorBrush = SolidColor(MaterialTheme.colorScheme.primary),
         keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
         keyboardActions = KeyboardActions(onSearch = { focusManager.clearFocus() }),
-    )
+        interactionSource = interactionSource,
+    ) { innerTextField ->
+        OutlinedTextFieldDefaults.DecorationBox(
+            value = query,
+            innerTextField = innerTextField,
+            enabled = true,
+            singleLine = true,
+            visualTransformation = VisualTransformation.None,
+            interactionSource = interactionSource,
+            placeholder = { Text("Search text in screenshots") },
+            leadingIcon = { Icon(Icons.Rounded.Search, contentDescription = null) },
+            trailingIcon = {
+                if (query.isNotEmpty()) {
+                    IconButton(onClick = { onQueryChange("") }) {
+                        Icon(Icons.Rounded.Close, contentDescription = "Clear search")
+                    }
+                }
+            },
+            colors = colors,
+            contentPadding = OutlinedTextFieldDefaults.contentPadding(top = 0.dp, bottom = 0.dp),
+            container = {
+                OutlinedTextFieldDefaults.Container(
+                    enabled = true,
+                    isError = false,
+                    interactionSource = interactionSource,
+                    colors = colors,
+                    shape = shape,
+                )
+            },
+        )
+    }
 }
 
 @Composable
@@ -404,6 +435,7 @@ private fun EmptyLook(modifier: Modifier, onScan: () -> Unit) {
     }
 }
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 private fun CategoryBrowser(
     collapse: CollapsingHeaderState,
@@ -499,11 +531,15 @@ private fun CategoryBrowser(
         when {
             visible.isNotEmpty() -> LazyVerticalGrid(
                 columns = GridCells.Adaptive(minSize = 110.dp),
-                state = rememberLazyGridState(),
+                // Build tiles up to a screen ahead in idle time between frames, not inside a fling frame.
+                state = rememberLazyGridState(cacheWindow = LazyLayoutCacheWindow(aheadFraction = 1f, behindFraction = 0.5f)),
                 contentPadding = PaddingValues(start = 12.dp, end = 12.dp, top = 8.dp, bottom = 16.dp),
                 horizontalArrangement = Arrangement.spacedBy(6.dp),
                 verticalArrangement = Arrangement.spacedBy(6.dp),
-                modifier = Modifier.fillMaxSize(),
+                modifier = Modifier
+                    .fillMaxSize()
+                    // Found by :classyBenchmark to fling the grid.
+                    .testTag("screenshot_grid"),
             ) {
                 items(visible, key = { it.id }) { image ->
                     ImageCard(
@@ -560,21 +596,28 @@ private fun CategoryBrowser(
     }
 
     // Detail dialog — shown in both cleanup and normal mode
-    images.firstOrNull { it.id == detailId }?.let { detailImage ->
+    if (detailId != null) {
+        val browsingImages = remember(detailId) {
+            if (visible.any { it.id == detailId }) visible else images
+        }
+        val currentRecords = remember(images, browsingImages) {
+            browsingImages.map { img -> images.firstOrNull { it.id == img.id } ?: img }
+        }
         ImageDetailDialog(
-            image = detailImage,
+            images = currentRecords,
+            initialImageId = detailId!!,
             thumbnailLoader = thumbnailLoader,
             onDismiss = { detailId = null },
-            onCategoryChange = { onCategoryChange(detailImage.id, it) },
-            onOpenFullscreen = { onOpenFullscreen(detailImage.id) },
-            onNavigateToDetails = {
+            onCategoryChange = onCategoryChange,
+            onOpenFullscreen = onOpenFullscreen,
+            onNavigateToDetails = { id ->
                 detailId = null
-                onNavigateToDetails(detailImage.id)
+                onNavigateToDetails(id)
             },
-            onDelete = if (isCleanupMode || detailImage.isCleanUpCandidate) {
-                {
+            onDelete = if (isCleanupMode || currentRecords.any { it.isCleanUpCandidate }) {
+                { id ->
                     detailId = null
-                    onDeleteScreenshots(listOf(detailImage.id))
+                    onDeleteScreenshots(listOf(id))
                 }
             } else null,
         )
@@ -772,95 +815,89 @@ private fun ImageCard(
     LaunchedEffect(image.id) {
         bitmap = thumbnailLoader.load(image.id, 320)
     }
-    Card(
-        onClick = onClick,
-        shape = RoundedCornerShape(10.dp),
-        elevation = CardDefaults.cardElevation(defaultElevation = 0.5.dp, pressedElevation = 2.dp),
-        border = if (checked) BorderStroke(2.dp, MaterialTheme.colorScheme.primary) else null,
+    // Plain modifiers rather than Card/Surface: a tile is built and measured inside a scroll
+    // frame, and Card's shadow was GPU work on every frame (seen in :classyBenchmark traces).
+    val shape = RoundedCornerShape(10.dp)
+    Box(
         modifier = Modifier
             .fillMaxWidth()
-            .aspectRatio(1f),
+            .aspectRatio(1f)
+            .clip(shape)
+            .then(if (checked) Modifier.border(2.dp, MaterialTheme.colorScheme.primary, shape) else Modifier)
+            .background(MaterialTheme.colorScheme.surfaceVariant)
+            .clickable(onClick = onClick),
     ) {
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .background(MaterialTheme.colorScheme.surfaceVariant),
-        ) {
-            val bmp = bitmap
-            if (bmp != null) {
-                Image(
-                    bitmap = bmp,
-                    contentDescription = image.name,
-                    contentScale = ContentScale.Crop,
-                    modifier = Modifier.fillMaxSize(),
-                )
-            }
-            val summary = remember(image.ocrText, image.description) {
-                ScreenshotContentSummarizer.summarizeDigest(image.ocrText, image.description)
-            }
-            val hasSummary = summary.isNotBlank() && summary != "No text detected"
-            val hasSubCategory = !image.subCategory.isNullOrEmpty()
+        val bmp = bitmap
+        if (bmp != null) {
+            Image(
+                bitmap = bmp,
+                contentDescription = image.name,
+                contentScale = ContentScale.Crop,
+                modifier = Modifier.fillMaxSize(),
+            )
+        }
+        val summary = remember(image.ocrText, image.rawOcrText, image.description, image.category, image.subCategory) {
+            ScreenshotContentSummarizer.previewText(image)
+        }
+        val hasSummary = summary.isNotBlank() && summary != "No text detected"
+        val hasSubCategory = !image.subCategory.isNullOrEmpty()
 
-            if (!selectable && (hasSummary || hasSubCategory)) {
-                Box(
-                    modifier = Modifier
-                        .align(Alignment.BottomStart)
-                        .fillMaxWidth()
-                        .background(
-                            Brush.verticalGradient(
-                                colors = listOf(Color.Transparent, Color.Black.copy(alpha = 0.8f)),
-                            ),
+        if (!selectable && (hasSummary || hasSubCategory)) {
+            Box(
+                modifier = Modifier
+                    .align(Alignment.BottomStart)
+                    .fillMaxWidth()
+                    .background(
+                        Brush.verticalGradient(
+                            colors = listOf(Color.Transparent, Color.Black.copy(alpha = 0.8f)),
+                        ),
+                    )
+                    .padding(horizontal = 6.dp, vertical = 6.dp),
+            ) {
+                Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                    if (hasSubCategory) {
+                        Text(
+                            text = image.subCategory,
+                            style = MaterialTheme.typography.labelSmall,
+                            color = Color.White,
+                            modifier = Modifier
+                                .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.9f), RoundedCornerShape(4.dp))
+                                .padding(horizontal = 4.dp, vertical = 1.dp),
                         )
-                        .padding(horizontal = 6.dp, vertical = 6.dp),
-                ) {
-                    Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                        if (hasSubCategory) {
-                            Surface(
-                                shape = RoundedCornerShape(4.dp),
-                                color = MaterialTheme.colorScheme.primary.copy(alpha = 0.9f),
-                            ) {
-                                Text(
-                                   text = image.subCategory,
-                                   style = MaterialTheme.typography.labelSmall,
-                                   color = Color.White,
-                                   modifier = Modifier.padding(horizontal = 4.dp, vertical = 1.dp),
-                                )
-                            }
-                        }
-                        if (hasSummary) {
-                            Text(
-                                text = summary,
-                                style = MaterialTheme.typography.labelSmall,
-                                color = Color.White,
-                                maxLines = 2,
-                                overflow = TextOverflow.Ellipsis,
-                            )
-                        }
+                    }
+                    if (hasSummary) {
+                        Text(
+                            text = summary,
+                            style = MaterialTheme.typography.labelSmall,
+                            color = Color.White,
+                            maxLines = 2,
+                            overflow = TextOverflow.Ellipsis,
+                        )
                     }
                 }
             }
+        }
 
-            // Checkbox overlay for selection mode
-            if (selectable) {
-                if (checked) {
-                    Box(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.25f)),
-                    )
-                }
+        // Checkbox overlay for selection mode
+        if (selectable) {
+            if (checked) {
                 Box(
                     modifier = Modifier
-                        .align(Alignment.TopEnd)
-                        .padding(6.dp),
-                ) {
-                    Icon(
-                        imageVector = if (checked) Icons.Rounded.CheckCircle else Icons.Rounded.RadioButtonUnchecked,
-                        contentDescription = if (checked) "Selected" else "Not selected",
-                        modifier = Modifier.size(22.dp),
-                        tint = if (checked) MaterialTheme.colorScheme.primary else Color.White.copy(alpha = 0.85f),
-                    )
-                }
+                        .fillMaxSize()
+                        .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.25f)),
+                )
+            }
+            Box(
+                modifier = Modifier
+                    .align(Alignment.TopEnd)
+                    .padding(6.dp),
+            ) {
+                Icon(
+                    imageVector = if (checked) Icons.Rounded.CheckCircle else Icons.Rounded.RadioButtonUnchecked,
+                    contentDescription = if (checked) "Selected" else "Not selected",
+                    modifier = Modifier.size(22.dp),
+                    tint = if (checked) MaterialTheme.colorScheme.primary else Color.White.copy(alpha = 0.85f),
+                )
             }
         }
     }
@@ -869,19 +906,27 @@ private fun ImageCard(
 
 @Composable
 internal fun ImageDetailDialog(
-    image: ImageRecord,
+    images: List<ImageRecord>,
+    initialImageId: String,
     thumbnailLoader: ThumbnailLoader,
     onDismiss: () -> Unit,
-    onCategoryChange: (ImageCategory?) -> Unit,
-    onOpenFullscreen: () -> Unit,
-    onNavigateToDetails: () -> Unit,
-    onDelete: (() -> Unit)? = null,
+    onCategoryChange: (id: String, ImageCategory?) -> Unit,
+    onOpenFullscreen: (id: String) -> Unit,
+    onNavigateToDetails: (id: String) -> Unit,
+    onDelete: ((id: String) -> Unit)? = null,
 ) {
-    var bitmap by remember(image.id) { mutableStateOf<ImageBitmap?>(null) }
-    var showDeleteConfirm by remember { mutableStateOf(false) }
-    LaunchedEffect(image.id) {
-        bitmap = thumbnailLoader.load(image.id, 720)
+    if (images.isEmpty()) return
+
+    val initialIndex = remember(initialImageId) {
+        images.indexOfFirst { it.id == initialImageId }.coerceAtLeast(0)
     }
+    val pagerState = rememberPagerState(
+        initialPage = initialIndex,
+        pageCount = { images.size },
+    )
+    val coroutineScope = rememberCoroutineScope()
+    val currentImage = images.getOrNull(pagerState.currentPage) ?: images.first()
+    var showDeleteConfirm by remember { mutableStateOf(false) }
 
     if (showDeleteConfirm) {
         AlertDialog(
@@ -892,7 +937,7 @@ internal fun ImageDetailDialog(
                 Button(
                     onClick = {
                         showDeleteConfirm = false
-                        onDelete?.invoke()
+                        onDelete?.invoke(currentImage.id)
                     },
                     colors = ButtonDefaults.buttonColors(
                         containerColor = MaterialTheme.colorScheme.error,
@@ -915,11 +960,64 @@ internal fun ImageDetailDialog(
 
     AlertDialog(
         onDismissRequest = onDismiss,
+        title = if (images.size > 1) {
+            {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    if (pagerState.currentPage > 0) {
+                        IconButton(
+                            onClick = {
+                                coroutineScope.launch {
+                                    pagerState.animateScrollToPage(pagerState.currentPage - 1)
+                                }
+                            },
+                            modifier = Modifier.size(28.dp),
+                        ) {
+                            Icon(
+                                Icons.AutoMirrored.Rounded.ArrowBack,
+                                contentDescription = "Previous screenshot",
+                                modifier = Modifier.size(18.dp),
+                            )
+                        }
+                    } else {
+                        Spacer(Modifier.size(28.dp))
+                    }
+
+                    Text(
+                        text = "${pagerState.currentPage + 1} of ${images.size}",
+                        style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Medium),
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+
+                    if (pagerState.currentPage < images.size - 1) {
+                        IconButton(
+                            onClick = {
+                                coroutineScope.launch {
+                                    pagerState.animateScrollToPage(pagerState.currentPage + 1)
+                                }
+                            },
+                            modifier = Modifier.size(28.dp),
+                        ) {
+                            Icon(
+                                Icons.AutoMirrored.Rounded.ArrowForward,
+                                contentDescription = "Next screenshot",
+                                modifier = Modifier.size(18.dp),
+                            )
+                        }
+                    } else {
+                        Spacer(Modifier.size(28.dp))
+                    }
+                }
+            }
+        } else null,
         confirmButton = {
             FilledTonalButton(
                 onClick = {
                     onDismiss()
-                    onNavigateToDetails()
+                    onNavigateToDetails(currentImage.id)
                 },
                 shape = RoundedCornerShape(16.dp),
             ) {
@@ -952,183 +1050,202 @@ internal fun ImageDetailDialog(
             }
         },
         text = {
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .verticalScroll(rememberScrollState()),
-                verticalArrangement = Arrangement.spacedBy(12.dp),
-            ) {
-                val bmp = bitmap
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(260.dp)
-                        .clip(RoundedCornerShape(12.dp))
-                        .background(MaterialTheme.colorScheme.surfaceVariant)
-                        .clickable(onClick = onOpenFullscreen),
-                    contentAlignment = Alignment.Center,
-                ) {
-                    if (bmp != null) {
-                        Image(
-                            bitmap = bmp,
-                            contentDescription = image.name,
-                            contentScale = ContentScale.Fit,
-                            modifier = Modifier.fillMaxSize(),
-                        )
-                    } else {
-                        CircularProgressIndicator(modifier = Modifier.size(32.dp))
-                    }
-
-                    // Floating fullscreen expand button in top-right corner
-                    IconButton(
-                        onClick = onOpenFullscreen,
-                        modifier = Modifier
-                            .align(Alignment.TopEnd)
-                            .padding(6.dp),
-                    ) {
-                        Surface(
-                            shape = RoundedCornerShape(18.dp),
-                            color = MaterialTheme.colorScheme.surface.copy(alpha = 0.85f),
-                            modifier = Modifier.size(36.dp),
-                        ) {
-                            Box(contentAlignment = Alignment.Center) {
-                                Icon(
-                                    Icons.Rounded.Fullscreen,
-                                    contentDescription = "Open Fullscreen",
-                                    modifier = Modifier.size(20.dp),
-                                    tint = MaterialTheme.colorScheme.onSurface,
-                                )
-                            }
-                        }
-                    }
-                }
-
-                Text(
-                    text = image.name,
-                    style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.SemiBold),
-                    maxLines = 2,
-                    overflow = TextOverflow.Ellipsis,
+            HorizontalPager(
+                state = pagerState,
+                modifier = Modifier.fillMaxWidth(),
+            ) { page ->
+                val pageImage = images.getOrNull(page) ?: return@HorizontalPager
+                ImageDetailContent(
+                    image = pageImage,
+                    thumbnailLoader = thumbnailLoader,
+                    onOpenFullscreen = { onOpenFullscreen(pageImage.id) },
+                    onCategoryChange = { onCategoryChange(pageImage.id, it) },
                 )
+            }
+        },
+    )
+}
 
-                // Summary card
-                val summary = remember(image.ocrText, image.description) {
-                    ScreenshotContentSummarizer.summarizeDigest(image.ocrText, image.description)
-                }
-                if (summary.isNotBlank() && summary != "No text detected") {
-                    Card(
-                        modifier = Modifier.fillMaxWidth(),
-                        shape = RoundedCornerShape(10.dp),
-                        colors = CardDefaults.cardColors(
-                            containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
-                        ),
-                    ) {
-                        Column(
-                            modifier = Modifier.padding(10.dp),
-                            verticalArrangement = Arrangement.spacedBy(4.dp),
-                        ) {
-                            Row(
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(6.dp),
-                            ) {
-                                Icon(
-                                    Icons.Rounded.AutoAwesome,
-                                    contentDescription = null,
-                                    modifier = Modifier.size(14.dp),
-                                    tint = MaterialTheme.colorScheme.primary,
-                                )
-                                Text(
-                                    text = "Summary",
-                                    style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.SemiBold),
-                                    color = MaterialTheme.colorScheme.primary,
-                                )
-                            }
-                            Text(
-                                text = summary,
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurface,
-                            )
-                        }
-                    }
-                }
+@Composable
+private fun ImageDetailContent(
+    image: ImageRecord,
+    thumbnailLoader: ThumbnailLoader,
+    onOpenFullscreen: () -> Unit,
+    onCategoryChange: (ImageCategory?) -> Unit,
+) {
+    var bitmap by remember(image.id) { mutableStateOf<ImageBitmap?>(null) }
+    LaunchedEffect(image.id) {
+        bitmap = thumbnailLoader.load(image.id, 720)
+    }
 
-                // Key highlights if any
-                val highlights = remember(image.ocrText) {
-                    ScreenshotContentSummarizer.extractHighlights(image.ocrText)
-                }
-                if (highlights.isNotEmpty()) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    ) {
-                        highlights.take(2).forEach { (label, value) ->
-                            Surface(
-                                shape = RoundedCornerShape(8.dp),
-                                color = MaterialTheme.colorScheme.primary.copy(alpha = 0.08f),
-                            ) {
-                                Text(
-                                    text = "$label: $value",
-                                    style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Medium),
-                                    color = MaterialTheme.colorScheme.primary,
-                                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
-                                    maxLines = 1,
-                                    overflow = TextOverflow.Ellipsis,
-                                )
-                            }
-                        }
-                    }
-                }
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .verticalScroll(rememberScrollState()),
+        verticalArrangement = Arrangement.spacedBy(12.dp),
+    ) {
+        val bmp = bitmap
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(260.dp)
+                .clip(RoundedCornerShape(12.dp))
+                .background(MaterialTheme.colorScheme.surfaceVariant)
+                .clickable(onClick = onOpenFullscreen),
+            contentAlignment = Alignment.Center,
+        ) {
+            if (bmp != null) {
+                Image(
+                    bitmap = bmp,
+                    contentDescription = null,
+                    contentScale = ContentScale.Fit,
+                    modifier = Modifier.fillMaxSize(),
+                )
+            } else {
+                CircularProgressIndicator(modifier = Modifier.size(32.dp))
+            }
 
-                Row(
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    verticalAlignment = Alignment.CenterVertically,
+            // Floating fullscreen expand button in top-right corner
+            IconButton(
+                onClick = onOpenFullscreen,
+                modifier = Modifier
+                    .align(Alignment.TopEnd)
+                    .padding(6.dp),
+            ) {
+                Surface(
+                    shape = RoundedCornerShape(18.dp),
+                    color = MaterialTheme.colorScheme.surface.copy(alpha = 0.85f),
+                    modifier = Modifier.size(36.dp),
                 ) {
-                    CategoryPicker(image = image, onCategoryChange = onCategoryChange)
-                    if (!image.subCategory.isNullOrEmpty()) {
-                        Surface(
-                            shape = RoundedCornerShape(16.dp),
-                            color = MaterialTheme.colorScheme.secondaryContainer,
-                        ) {
-                            Text(
-                                text = image.subCategory,
-                                modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
-                                style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Medium),
-                                color = MaterialTheme.colorScheme.onSecondaryContainer,
-                            )
-                        }
+                    Box(contentAlignment = Alignment.Center) {
+                        Icon(
+                            Icons.Rounded.Fullscreen,
+                            contentDescription = "Open Fullscreen",
+                            modifier = Modifier.size(20.dp),
+                            tint = MaterialTheme.colorScheme.onSurface,
+                        )
                     }
                 }
+            }
+        }
 
-                val sourceNote = when (image.source) {
-                    CategorySource.User -> "Category set by you \u00B7 automatic: ${image.autoCategory.displayName}"
-                    CategorySource.Learned -> "Category learned from similar screenshots you corrected"
-                    CategorySource.Rules -> null
-                }
-                if (sourceNote != null) {
+        // Summary card
+        val summary = remember(image.ocrText, image.rawOcrText, image.description, image.category, image.subCategory) {
+            ScreenshotContentSummarizer.previewText(image)
+        }
+        if (summary.isNotBlank() && summary != "No text detected") {
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(10.dp),
+                colors = CardDefaults.cardColors(
+                    containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+                ),
+            ) {
+                Column(
+                    modifier = Modifier.padding(10.dp),
+                    verticalArrangement = Arrangement.spacedBy(4.dp),
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(6.dp),
+                    ) {
+                        Icon(
+                            Icons.Rounded.AutoAwesome,
+                            contentDescription = null,
+                            modifier = Modifier.size(14.dp),
+                            tint = MaterialTheme.colorScheme.primary,
+                        )
+                        Text(
+                            text = "Summary",
+                            style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.SemiBold),
+                            color = MaterialTheme.colorScheme.primary,
+                        )
+                    }
                     Text(
-                        text = sourceNote,
+                        text = summary,
                         style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                }
-
-                if (image.width > 0 && image.height > 0) {
-                    Text(
-                        text = "Resolution: ${image.width} × ${image.height} px",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                }
-
-                if (!image.description.isNullOrEmpty() && image.description != summary) {
-                    Text(
-                        text = image.description,
-                        style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurface,
                     )
                 }
             }
-        },
-    )
+        }
+
+        // Key highlights if any
+        val highlights = remember(image.ocrText) {
+            ScreenshotContentSummarizer.extractHighlights(image.ocrText)
+        }
+        if (highlights.isNotEmpty()) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                highlights.take(2).forEach { (label, value) ->
+                    Surface(
+                        shape = RoundedCornerShape(8.dp),
+                        color = MaterialTheme.colorScheme.primary.copy(alpha = 0.08f),
+                    ) {
+                        Text(
+                            text = "$label: $value",
+                            style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Medium),
+                            color = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                        )
+                    }
+                }
+            }
+        }
+
+        Row(
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            CategoryPicker(image = image, onCategoryChange = onCategoryChange)
+            if (!image.subCategory.isNullOrEmpty()) {
+                Surface(
+                    shape = RoundedCornerShape(16.dp),
+                    color = MaterialTheme.colorScheme.secondaryContainer,
+                ) {
+                    Text(
+                        text = image.subCategory,
+                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
+                        style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Medium),
+                        color = MaterialTheme.colorScheme.onSecondaryContainer,
+                    )
+                }
+            }
+        }
+
+        val sourceNote = when (image.source) {
+            CategorySource.User -> "Category set by you \u00B7 automatic: ${image.autoCategory.displayName}"
+            CategorySource.Learned -> "Category learned from similar screenshots you corrected"
+            CategorySource.Rules -> null
+        }
+        if (sourceNote != null) {
+            Text(
+                text = sourceNote,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+
+        if (image.width > 0 && image.height > 0) {
+            Text(
+                text = "Resolution: ${image.width} × ${image.height} px",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+
+        if (!image.description.isNullOrEmpty() && image.description != summary) {
+            Text(
+                text = image.description,
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurface,
+            )
+        }
+    }
 }
 
 /** Category pill that opens a menu to correct the category or reset it to automatic. */
@@ -1199,15 +1316,11 @@ internal fun CategoryPicker(image: ImageRecord, onCategoryChange: (ImageCategory
 
 fun ImageCategory.icon(): ImageVector = when (this) {
     ImageCategory.Receipts -> Icons.AutoMirrored.Rounded.ReceiptLong
-    ImageCategory.Finance -> Icons.Rounded.AccountBalance
-    ImageCategory.Shopping -> Icons.Rounded.ShoppingCart
-    ImageCategory.Travel -> Icons.Rounded.Flight
-    ImageCategory.Food -> Icons.Rounded.Restaurant
+    ImageCategory.QR -> Icons.Rounded.QrCodeScanner
+    ImageCategory.Learning -> Icons.Rounded.School
+    ImageCategory.Travels -> Icons.Rounded.Flight
+    ImageCategory.Foods -> Icons.Rounded.Restaurant
     ImageCategory.Health -> Icons.Rounded.LocalHospital
-    ImageCategory.Work -> Icons.Rounded.Work
-    ImageCategory.Code -> Icons.Rounded.Code
-    ImageCategory.Chat -> Icons.Rounded.ChatBubbleOutline
-    ImageCategory.Social -> Icons.Rounded.People
-    ImageCategory.Documents -> Icons.Rounded.Description
-    ImageCategory.Other -> Icons.Rounded.Screenshot
+    ImageCategory.Others -> Icons.Rounded.Category
+    ImageCategory.Uncategorized -> Icons.Rounded.Screenshot
 }

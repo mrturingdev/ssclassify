@@ -38,7 +38,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.mrturingdev.ssclassify.settings.appVersion
 import com.mrturingdev.ssclassify.settings.openStoreReview
@@ -77,16 +76,25 @@ fun SettingsScreen(
             )
         },
         bottomBar = {
-            Text(
-                "S.S. Classify · Version ${appVersion()}",
+            Row(
                 modifier = Modifier
                     .fillMaxWidth()
                     .navigationBarsPadding()
                     .padding(vertical = 16.dp),
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                textAlign = TextAlign.Center,
-            )
+                horizontalArrangement = Arrangement.Center,
+            ) {
+                AppWordmark(
+                    modifier = Modifier.alignByBaseline(),
+                    fontSize = MaterialTheme.typography.bodySmall.fontSize,
+                    accentColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                Text(
+                    " · Version ${appVersion()}",
+                    modifier = Modifier.alignByBaseline(),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
         },
     ) { padding ->
         Column(

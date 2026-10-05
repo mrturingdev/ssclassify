@@ -5,17 +5,13 @@ import com.mrturingdev.ssclassify.classify.ObjectSource
 /** Content categories for screenshots; declaration order breaks classifier ties. */
 enum class ImageCategory(val displayName: String) {
     Receipts("Receipts"),
-    Finance("Finance"),
-    Shopping("Shopping"),
-    Travel("Travel"),
-    Food("Food"),
+    QR("QR"),
+    Learning("Learning"),
+    Travels("Travels"),
+    Foods("Foods"),
     Health("Health"),
-    Work("Work"),
-    Code("Code"),
-    Chat("Chats"),
-    Social("Social"),
-    Documents("Documents"),
-    Other("Uncategorized"),
+    Others("Others"),
+    Uncategorized("Uncategorized"),
 }
 
 /** Where an [ImageRecord.category] came from, strongest first. */
@@ -63,5 +59,5 @@ data class ImageRecord(
             description?.contains("white screen", ignoreCase = true) == true
 
     val isCleanUpCandidate: Boolean
-        get() = isBlankScreen || category == ImageCategory.Other
+        get() = isBlankScreen || category == ImageCategory.Uncategorized
 }
