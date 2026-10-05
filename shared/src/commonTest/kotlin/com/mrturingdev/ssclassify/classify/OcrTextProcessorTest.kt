@@ -133,4 +133,18 @@ class OcrTextProcessorTest {
         assertEquals("Inbox\nSearch mail\nPayment received\nYou got 120.00 from Sam\nReply", text.filtered)
         assertEquals("Payment received\nYou got 120.00 from Sam\nInbox\nSearch mail\nReply", text.detail)
     }
+
+    @Test
+    fun aBigButtonInTheMiddleIsNotASolidTitle() {
+        fun sized(text: String, centerY: Float, height: Float = 0.02f) =
+            OcrLine(text, 0.1f, centerY - height / 2, 0.9f, centerY + height / 2)
+        val lines = listOf(
+            sized("Payment received", centerY = 0.10f), // outer
+            sized("You got 120.00 from Sam", centerY = 0.40f),
+            sized("DONE", centerY = 0.50f, height = 0.05f), // title-size, but one short word
+            sized("Share receipt", centerY = 0.55f),
+        )
+        val text = OcrTextProcessor.process(lines)
+        assertEquals(text.filtered, text.detail)
+    }
 }

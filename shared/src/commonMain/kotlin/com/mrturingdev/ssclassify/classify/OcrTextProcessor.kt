@@ -63,6 +63,10 @@ object OcrTextProcessor {
     /** Fewest letters for an ALL CAPS row to count as a heading, so "OK" or "PM" don't. Calibration knob. */
     const val MIN_CAPS_LETTERS = 3
 
+    /** A solid title says something: at least this many words or characters, so big "DONE" or "PAY" buttons don't count. Calibration knobs. */
+    const val MIN_TITLE_WORDS = 2
+    const val MIN_TITLE_CHARS = 8
+
     /** One reading-order row: [level] 1 = title, 2 = emphasized, 3 = body; [ring] 0 = middle of the screen. */
     private class Row(val text: String, val size: Float, val ring: Int, var level: Int = 3)
 
@@ -94,7 +98,7 @@ object OcrTextProcessor {
             }
         }
         // Detail: a solid title in the middle makes the outer rows secondary, so they go to the bottom.
-        val hasMiddleTitle = rows.any { it.ring == 0 && it.level == 1 }
+        val hasMiddleTitle = rows.any { it.ring == 0 && it.level == 1 && isSolidTitle(it.text) }
         val detail = if (hasMiddleTitle) {
             val (middle, outer) = rows.partition { it.ring == 0 }
             (middle + outer).joinToString("\n") { it.text }
@@ -103,6 +107,7 @@ object OcrTextProcessor {
         }
         return OcrText(raw, filtered, summary, detail)
     }
+
 
     /**
      * Font size first: rows clearly larger than the screen's body text (the
@@ -122,6 +127,9 @@ object OcrTextProcessor {
             row.level = if (isAllCaps(row.text)) maxOf(1, bySize - 1) else bySize
         }
     }
+
+    private fun isSolidTitle(text: String): Boolean =
+        text.split(' ').count { it.isNotBlank() } >= MIN_TITLE_WORDS || text.length >= MIN_TITLE_CHARS
 
     /** Scripts without case (Devanagari, CJK) never count as caps. */
     private fun isAllCaps(text: String): Boolean {
