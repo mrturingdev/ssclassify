@@ -97,4 +97,93 @@ class ScreenshotCategorizerTest {
     fun emptyTextIsUncategorized() {
         assertEquals(ImageCategory.Uncategorized, ScreenshotCategorizer.categorize(""))
     }
+
+    @Test
+    fun restaurantBillPrioritizesReceiptsOverFoods() {
+        val ocr = """
+            Roadhouse Cafe
+            Tax Invoice / Cash Receipt
+            1x Margherita Pizza    $12.00
+            1x Cappuccino Coffee   $4.00
+            Subtotal: $16.00
+            Tax: $2.08
+            Total: $18.08
+            Payment: Paid by Card
+        """.trimIndent()
+        assertEquals(ImageCategory.Receipts, ScreenshotCategorizer.categorize(ocr))
+    }
+
+    @Test
+    fun foodMenuWithoutReceiptTotalIsFoods() {
+        val ocr = """
+            Roadhouse Cafe Menu
+            Appetizers
+            Garlic Bread $4.00
+            Margherita Pizza $12.00
+            Coffee & Beverages
+            Opening hours 10:00 to 22:00
+        """.trimIndent()
+        assertEquals(ImageCategory.Foods, ScreenshotCategorizer.categorize(ocr))
+    }
+
+    @Test
+    fun flightPaymentReceiptPrioritizesReceiptsOverTravels() {
+        val ocr = """
+            Airline Booking Confirmation
+            Flight YT 123 KTM to DEL
+            Airfare: $120.00
+            Taxes: $15.00
+            Total Amount Due: $0.00
+            Amount Paid: $135.00
+            Payment Receipt Txn: 98124
+        """.trimIndent()
+        assertEquals(ImageCategory.Receipts, ScreenshotCategorizer.categorize(ocr))
+    }
+
+    @Test
+    fun boardingPassWithoutPaymentTotalIsTravels() {
+        val ocr = """
+            Yeti Airlines Boarding Pass
+            Passenger: Alex Rivera
+            Flight YT 123 Gate 4 Seat 12A
+            Departure: 10:30 Terminal 1
+        """.trimIndent()
+        assertEquals(ImageCategory.Travels, ScreenshotCategorizer.categorize(ocr))
+    }
+
+    @Test
+    fun pharmacyReceiptPrioritizesReceiptsOverHealth() {
+        val ocr = """
+            City Pharmacy
+            Cash Receipt / Tax Invoice
+            1x Paracetamol 500mg dose  Rs. 100
+            Subtotal: Rs. 100
+            Total: Rs. 100
+            Paid in Cash
+        """.trimIndent()
+        assertEquals(ImageCategory.Receipts, ScreenshotCategorizer.categorize(ocr))
+    }
+
+    @Test
+    fun doctorPrescriptionWithoutTotalIsHealth() {
+        val ocr = """
+            Dr. Sharma Clinic
+            OPD Medical Prescription
+            Patient: Alex
+            Rx: Tab Paracetamol 500mg dose twice daily
+            Follow up after 5 days
+        """.trimIndent()
+        assertEquals(ImageCategory.Health, ScreenshotCategorizer.categorize(ocr))
+    }
+
+    @Test
+    fun headingWeightMultiplierPrioritizesTitleHeading() {
+        // "# Boarding Pass" has weight 3x (score 3 for Travels).
+        // Body has 1 "menu" (score 1 for Foods).
+        val ocr = """
+            # Boarding Pass
+            Look at the menu later
+        """.trimIndent()
+        assertEquals(ImageCategory.Travels, ScreenshotCategorizer.categorize(ocr, prioritizedText = ocr))
+    }
 }

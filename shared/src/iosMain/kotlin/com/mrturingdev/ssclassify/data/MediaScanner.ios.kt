@@ -5,6 +5,7 @@ import com.mrturingdev.ssclassify.classify.ObjectSource
 import com.mrturingdev.ssclassify.classify.OcrHelper
 import com.mrturingdev.ssclassify.classify.OcrMeaningProvider
 import com.mrturingdev.ssclassify.classify.OcrTextProcessor
+import com.mrturingdev.ssclassify.classify.ScreenshotCategorizer
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.callbackFlow
@@ -115,13 +116,22 @@ actual class MediaScanner actual constructor() : ScreenshotSource {
             val text = OcrTextProcessor.process(ocr.recognizeLines(asset))
             val detected = ObjectResolver.fromText(text.filtered)
             val meaning = meaningProvider.extractMeaning(text.raw, text.filtered, text.summary)
+            val category = ScreenshotCategorizer.categorize(
+                text = text.filtered,
+                name = item.name,
+                subCategory = detected?.label,
+                prioritizedText = text.summary,
+            )
+            val resolvedSubCategory = detected?.label
+                ?: meaning.subCategory
+                ?: ObjectResolver.resolveSubCategory(text.filtered, category)
             onResult(
                 item,
                 ScreenshotAnalysis(
                     rawText = text.raw,
                     filteredText = text.filtered,
                     detailText = text.detail,
-                    subCategory = detected?.label ?: meaning.subCategory,
+                    subCategory = resolvedSubCategory,
                     objectSource = detected?.source ?: if (meaning.subCategory != null) ObjectSource.Ocr else null,
                     description = meaning.message.takeIf { it.isNotBlank() && it != "No text detected" },
                 ),

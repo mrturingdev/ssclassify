@@ -45,4 +45,24 @@ class ObjectResolverTest {
             ),
         )
     }
+
+    @Test
+    fun resolvesReceiptDomainSubcategories() {
+        assertEquals("Food", ObjectResolver.resolveSubCategory("Himalayan Java Cafe coffee pizza total $15", com.mrturingdev.ssclassify.model.ImageCategory.Receipts))
+        assertEquals("Travel", ObjectResolver.resolveSubCategory("Yeti Airlines flight booking total $120", com.mrturingdev.ssclassify.model.ImageCategory.Receipts))
+        assertEquals("Health", ObjectResolver.resolveSubCategory("City Pharmacy medicine dose total $25", com.mrturingdev.ssclassify.model.ImageCategory.Receipts))
+        assertEquals("Grocery", ObjectResolver.resolveSubCategory("Bhatbhateni Supermarket provisions total $50", com.mrturingdev.ssclassify.model.ImageCategory.Receipts))
+        assertEquals("Utility", ObjectResolver.resolveSubCategory("Electricity bill payment total $30", com.mrturingdev.ssclassify.model.ImageCategory.Receipts))
+    }
+
+    @Test
+    fun resolvesDomainSubcategoriesAcrossTaxonomy() {
+        assertEquals("Code", ObjectResolver.resolveSubCategory("fun testCode() {\n  return 42\n}", com.mrturingdev.ssclassify.model.ImageCategory.Learning))
+        assertEquals("Quiz", ObjectResolver.resolveSubCategory("Physics Chapter 2 quiz questions", com.mrturingdev.ssclassify.model.ImageCategory.Learning))
+        assertEquals("Boarding Pass", ObjectResolver.resolveSubCategory("Flight YT 123 Gate 4 Seat 12A", com.mrturingdev.ssclassify.model.ImageCategory.Travels))
+        assertEquals("Menu", ObjectResolver.resolveSubCategory("Italian Restaurant Menu with Appetizers and Desserts", com.mrturingdev.ssclassify.model.ImageCategory.Foods))
+        assertEquals("Recipe", ObjectResolver.resolveSubCategory("Chocolate Cake Recipe: 2 cups flour, 1 tablespoon sugar, bake at 350", com.mrturingdev.ssclassify.model.ImageCategory.Foods))
+        assertEquals("Prescription", ObjectResolver.resolveSubCategory("Clinic OPD Prescription: Rx Paracetamol 500mg dose", com.mrturingdev.ssclassify.model.ImageCategory.Health))
+        assertEquals("Fitness", ObjectResolver.resolveSubCategory("Daily Workout: 10,000 steps, 450 calories, heart rate 120 bpm", com.mrturingdev.ssclassify.model.ImageCategory.Health))
+    }
 }

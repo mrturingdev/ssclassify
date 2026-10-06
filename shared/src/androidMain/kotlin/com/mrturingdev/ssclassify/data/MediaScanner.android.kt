@@ -157,7 +157,7 @@ actual class MediaScanner actual constructor() : ScreenshotSource {
         val meaningProvider = OcrMeaningProvider()
         try {
             for (asset in assets) {
-                onResult(asset, analyzeOne(context, Uri.parse(asset.id), tfHelper, ocrHelper, meaningProvider))
+                onResult(asset, analyzeOne(context, Uri.parse(asset.id), asset.name, tfHelper, ocrHelper, meaningProvider))
             }
         } finally {
             tfHelper.close()
@@ -174,6 +174,7 @@ actual class MediaScanner actual constructor() : ScreenshotSource {
     private suspend fun analyzeOne(
         context: Context,
         mediaUri: Uri,
+        name: String,
         tfHelper: TensorFlowVisionHelper,
         ocrHelper: OcrHelper,
         meaningProvider: OcrMeaningProvider,
@@ -225,7 +226,15 @@ actual class MediaScanner actual constructor() : ScreenshotSource {
             // Extract semantic meaning via AICore
             val meaning = meaningProvider.extractMeaning(text.raw, text.filtered, text.summary)
 
-            val resolvedSubCategory = finalDetected?.label ?: meaning.subCategory
+            val category = ScreenshotCategorizer.categorize(
+                text = text.filtered,
+                name = name,
+                subCategory = finalDetected?.label,
+                prioritizedText = text.summary,
+            )
+            val resolvedSubCategory = finalDetected?.label
+                ?: meaning.subCategory
+                ?: ObjectResolver.resolveSubCategory(text.filtered, category)
             val finalDescription = when (blankType) {
                 BlankScreenType.BlackScreen -> "Solid black screen with no text."
                 BlankScreenType.WhiteScreen -> "Plain white screen with no text."

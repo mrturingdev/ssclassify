@@ -3,6 +3,7 @@ package com.mrturingdev.ssclassify.data
 import app.cash.sqldelight.db.SqlDriver
 import com.mrturingdev.ssclassify.PERMISSION_DENIED
 import com.mrturingdev.ssclassify.classify.CorrectionLearner
+import com.mrturingdev.ssclassify.classify.ObjectResolver
 import com.mrturingdev.ssclassify.classify.ObjectSource
 import com.mrturingdev.ssclassify.classify.OcrTextProcessor
 import com.mrturingdev.ssclassify.classify.ScreenshotCategorizer
@@ -131,7 +132,15 @@ class ScreenshotRepository(
 
     private fun Row.toRecord(learner: CorrectionLearner): ImageRecord {
         val learned = learner.categorize(doc)
-        val auto = learned ?: ScreenshotCategorizer.categorize(filtered, name, sub_category)
+        val auto = learned ?: ScreenshotCategorizer.categorize(
+            text = filtered,
+            name = name,
+            subCategory = sub_category,
+            prioritizedText = detail_text ?: filtered,
+        )
+        val chosenCategory = override ?: auto
+        val resolvedSub = sub_category?.takeIf { it.isNotEmpty() }
+            ?: ObjectResolver.resolveSubCategory(filtered, chosenCategory)
         return ImageRecord(
             id = id,
             name = name,
@@ -140,8 +149,8 @@ class ScreenshotRepository(
             width = width.toInt(),
             height = height.toInt(),
             dateMillis = date_millis,
-            category = override ?: auto,
-            subCategory = sub_category,
+            category = chosenCategory,
+            subCategory = resolvedSub,
             description = description,
             autoCategory = auto,
             source = when {
