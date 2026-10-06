@@ -184,4 +184,12 @@ class ScreenshotContentSummarizerTest {
             ScreenshotContentSummarizer.extractHighlights("Loan statement\nTotal NPR 1,25,000.00"),
         )
     }
+
+    @Test
+    fun abbreviatedFiguresAreNotAmounts() {
+        assertEquals(
+            "3. Build a life dashboard",
+            ScreenshotContentSummarizer.previewText("3. Build a life dashboard\nRevenue $1.2M\n25K", title = "3. Build a life dashboard"),
+        )
+    }
 }

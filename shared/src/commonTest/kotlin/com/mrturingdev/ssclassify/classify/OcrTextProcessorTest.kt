@@ -178,4 +178,20 @@ class OcrTextProcessorTest {
         val flat = listOf(sized("Gate 4", centerY = 0.40f), sized("Seat 12A", centerY = 0.50f))
         assertEquals(null, OcrTextProcessor.process(flat).title)
     }
+
+    @Test
+    fun nearlyEqualTitleSizesTieAndTheHigherRowWins() {
+        fun sized(text: String, centerY: Float, height: Float = 0.015f) =
+            OcrLine(text, 0.1f, centerY - height / 2, 0.9f, centerY + height / 2)
+        val lines = listOf(
+            sized("Payment Successful!", centerY = 0.16f, height = 0.0187f), // heights measured on a phone
+            sized("NPR 2600.00", centerY = 0.31f, height = 0.030f),
+            sized("02 OCT, 2026 05:13 PM", centerY = 0.36f),
+            sized("View Details", centerY = 0.42f),
+            sized("Transaction Code", centerY = 0.51f),
+            sized("Split payment with friends?", centerY = 0.60f, height = 0.0192f), // 2.6% taller: jitter, not a bigger font
+            sized("Add expense category", centerY = 0.67f),
+        )
+        assertEquals("Payment Successful!", OcrTextProcessor.process(lines).title)
+    }
 }

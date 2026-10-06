@@ -74,6 +74,13 @@ object OcrTextProcessor {
     const val MIN_TITLE_LETTERS = 4
     const val TITLE_LETTER_SHARE = 0.6f
 
+    /**
+     * Title candidates within this share of the largest height count as the same size. Measured: one
+     * screen's two rows differed 2.6% between OCR passes (jitter), while a real size step was 6%.
+     * Calibration knob.
+     */
+    const val TITLE_SIZE_TOLERANCE = 0.05f
+
     /** One reading-order row: [level] 1 = title, 2 = emphasized, 3 = body; [ring] 0 = middle of the screen. */
     private class Row(val text: String, val size: Float, val ring: Int, var level: Int = 3)
 
@@ -132,8 +139,12 @@ object OcrTextProcessor {
         val (inner, outer) = candidates.partition { it.ring < FOCUS_RINGS.size }
         return sequenceOf(inner, outer).firstNotNullOfOrNull { pool ->
             (1..2).firstNotNullOfOrNull { level ->
-                // maxByOrNull keeps the first of equal rows, which is reading order.
-                pool.filter { it.level == level }.maxByOrNull { it.size }
+                val leveled = pool.filter { it.level == level }
+                val largest = leveled.maxOfOrNull { it.size } ?: return@firstNotNullOfOrNull null
+                // Near-equal sizes tie (OCR box heights jitter between passes). Among ties a phrase
+                // beats a one-word page label like "Settings", then the higher row wins.
+                leveled.filter { it.size >= largest * (1f - TITLE_SIZE_TOLERANCE) }
+                    .minWith(compareBy<Row> { if (it.text.trim().contains(' ')) 0 else 1 })
             }
         }?.text
     }

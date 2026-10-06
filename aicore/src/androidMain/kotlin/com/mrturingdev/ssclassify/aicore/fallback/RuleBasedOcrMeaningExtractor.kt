@@ -15,8 +15,9 @@ object RuleBasedOcrMeaningExtractor {
 
     private val AMOUNT_REGEX = Regex(
         // Keywords are whole words: "rs" inside "users 300" is not rupees. Numbers keep
-        // thousands and lakh grouping ("1,250.00", "1,25,000"), not just their first group.
-        """(?i)(?:\b(?:total|grand\s*total|subtotal|amount|due|paid|price|balance|rs\.?|npr)|\$|€|£|₹)\s*[:=-]?\s*([$€£₹]?\s*(?:\d{1,3}(?:,\d{2,3})+(?:\.\d{1,2})?|\d+(?:[.,]\d{1,2})?))"""
+        // thousands and lakh grouping ("1,250.00", "1,25,000"), not just their first group, and an
+        // amount ends there: "$1.2M" or "25K" is an abbreviated figure, not money.
+        """(?i)(?:\b(?:total|grand\s*total|subtotal|amount|due|paid|price|balance|rs\.?|npr)|\$|€|£|₹)\s*[:=-]?\s*([$€£₹]?\s*(?:\d{1,3}(?:,\d{2,3})+(?:\.\d{1,2})?|\d+(?:[.,]\d{1,2})?))(?![.,]?[\p{L}\d])"""
     )
     private val DATE_REGEX = Regex(
         """(?i)(?:date|dated)?\s*[:=-]?\s*(\b\d{1,4}[/-]\d{1,2}[/-]\d{1,4}\b|\b(?:jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*\s+\d{1,2},?\s+\d{2,4}\b)"""
