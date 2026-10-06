@@ -11,13 +11,18 @@ import platform.Photos.PHImageRequestOptions
 import platform.Photos.PHImageRequestOptionsDeliveryModeHighQualityFormat
 import platform.Photos.PHImageRequestOptionsResizeModeFast
 import platform.UIKit.UIImage
+import platform.Vision.VNBarcodeObservation
+import platform.Vision.VNDetectBarcodesRequest
 import platform.Vision.VNImageRequestHandler
 import platform.Vision.VNRecognizeTextRequest
 import platform.Vision.VNRecognizedText
 import platform.Vision.VNRecognizedTextObservation
 import platform.Vision.VNRequestTextRecognitionLevelAccurate
 
-/** Apple Vision OCR over a Photos asset; blocking, call off the main thread. */
+/** One Vision pass over a screenshot: its text lines, and the payload of a QR or barcode if it has one. */
+class VisionScan(val lines: List<OcrLine>, val barcodePayload: String?)
+
+/** Apple Vision OCR and barcode detection over a Photos asset; blocking, call off the main thread. */
 class OcrHelper {
     private val manager = PHImageManager.defaultManager()
     private val options = PHImageRequestOptions().apply {
@@ -27,9 +32,12 @@ class OcrHelper {
         networkAccessAllowed = false
     }
 
-    /** Vision text lines with boxes flipped to the shared top-left normalized space. */
-    /** Null when the image can't be loaded or Vision fails, as opposed to a screen with no text. */
-    fun recognizeLines(asset: PHAsset, maxDimension: Double = 1600.0): List<OcrLine>? {
+    /**
+     * Text lines (boxes flipped to the shared top-left normalized space) and the
+     * first barcode's payload, from one image load and one Vision request handler.
+     * Null when the image can't be loaded or Vision fails, as opposed to a screen with no text.
+     */
+    fun scan(asset: PHAsset, maxDimension: Double = 1600.0): VisionScan? {
         var image: UIImage? = null
         manager.requestImageForAsset(
             asset,
@@ -38,15 +46,20 @@ class OcrHelper {
             options,
         ) { result, _ -> image = result }
         val cgImage = image?.CGImage ?: return null
+        val handler = VNImageRequestHandler(cgImage, emptyMap<Any?, Any?>())
 
         val request = VNRecognizeTextRequest().apply {
             recognitionLevel = VNRequestTextRecognitionLevelAccurate
             usesLanguageCorrection = true
         }
-        val handler = VNImageRequestHandler(cgImage, emptyMap<Any?, Any?>())
-        if (!handler.performRequests(listOf(request), null)) return null
+        val barcodes = VNDetectBarcodesRequest()
+        // False when either request fails; keep whatever the other one found (a QR survives an OCR failure).
+        val ok = handler.performRequests(listOf(request, barcodes), null)
+        if (!ok && request.results == null && barcodes.results == null) return null
 
-        return request.results.orEmpty().mapNotNull { result ->
+        val payload = barcodes.results.orEmpty()
+            .firstNotNullOfOrNull { (it as? VNBarcodeObservation)?.payloadStringValue?.takeIf(String::isNotBlank) }
+        val lines = request.results.orEmpty().mapNotNull { result ->
             val observation = result as? VNRecognizedTextObservation ?: return@mapNotNull null
             val text = (observation.topCandidates(1u).firstOrNull() as? VNRecognizedText)?.string
                 ?: return@mapNotNull null
@@ -62,5 +75,6 @@ class OcrHelper {
                 )
             }
         }
+        return VisionScan(lines, payload)
     }
 }

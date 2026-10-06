@@ -13,8 +13,6 @@ import kotlin.coroutines.resume
  */
 object QrCodeDetector {
 
-    const val LABEL_QR_CODE = "QR Code"
-
     /**
      * Scans [bitmap] for barcodes. Returns the first match or null.
      * Must be called from a coroutine (uses suspend for the ML Kit Task callback).
@@ -39,14 +37,13 @@ object QrCodeDetector {
     private fun Barcode.toQrResult(): QrResult {
         val raw = rawValue ?: displayValue ?: ""
         // Payment codes first: the decoded payload names the payee and network reliably.
-        PaymentQrParser.parse(raw)?.let { payment ->
-            return QrResult(subLabel = PaymentQrParser.SUB_CATEGORY, description = payment.description, detail = raw, title = payment.payee)
-        }
+        val described = QrDescriber.describe(raw)
+        if (described.subLabel == PaymentQrParser.SUB_CATEGORY) return described
         return when (valueType) {
             Barcode.TYPE_URL -> {
                 val host = url?.url?.let { extractHost(it) } ?: raw
                 QrResult(
-                    subLabel = LABEL_QR_CODE,
+                    subLabel = QrDescriber.LABEL_QR_CODE,
                     description = "QR Code linking to: $host",
                     detail = raw,
                 )
@@ -56,66 +53,33 @@ object QrCodeDetector {
                 val name = contact?.name?.formattedName?.takeIf { it.isNotBlank() } ?: "Unknown person"
                 val org = contact?.organization?.takeIf { it.isNotBlank() }
                 val desc = if (org != null) "Contact QR: $name ($org)" else "Contact QR: $name"
-                QrResult(subLabel = LABEL_QR_CODE, description = desc, detail = raw)
+                QrResult(subLabel = QrDescriber.LABEL_QR_CODE, description = desc, detail = raw)
             }
             Barcode.TYPE_PHONE -> {
                 val phone = phone?.number ?: raw
-                QrResult(subLabel = LABEL_QR_CODE, description = "Phone QR: $phone", detail = raw)
+                QrResult(subLabel = QrDescriber.LABEL_QR_CODE, description = "Phone QR: $phone", detail = raw)
             }
             Barcode.TYPE_EMAIL -> {
                 val addr = email?.address ?: raw
-                QrResult(subLabel = LABEL_QR_CODE, description = "Email QR: $addr", detail = raw)
+                QrResult(subLabel = QrDescriber.LABEL_QR_CODE, description = "Email QR: $addr", detail = raw)
             }
             Barcode.TYPE_WIFI -> {
                 val ssid = wifi?.ssid ?: "Unknown network"
-                QrResult(subLabel = LABEL_QR_CODE, description = "Wi-Fi QR for network: $ssid", detail = raw)
+                QrResult(subLabel = QrDescriber.LABEL_QR_CODE, description = "Wi-Fi QR for network: $ssid", detail = raw)
             }
             Barcode.TYPE_GEO -> {
-                QrResult(subLabel = LABEL_QR_CODE, description = "Location QR code", detail = raw)
+                QrResult(subLabel = QrDescriber.LABEL_QR_CODE, description = "Location QR code", detail = raw)
             }
             Barcode.TYPE_CALENDAR_EVENT -> {
                 val summary = calendarEvent?.summary?.takeIf { it.isNotBlank() } ?: "event"
-                QrResult(subLabel = LABEL_QR_CODE, description = "Calendar QR: $summary", detail = raw)
+                QrResult(subLabel = QrDescriber.LABEL_QR_CODE, description = "Calendar QR: $summary", detail = raw)
             }
             Barcode.TYPE_SMS -> {
                 val number = sms?.phoneNumber ?: raw
-                QrResult(subLabel = LABEL_QR_CODE, description = "SMS QR to: $number", detail = raw)
+                QrResult(subLabel = QrDescriber.LABEL_QR_CODE, description = "SMS QR to: $number", detail = raw)
             }
-            else -> {
-                // Detect common payment QR patterns in raw value
-                val description = detectPaymentOrAppQr(raw)
-                    ?: if (raw.length <= 120) "QR Code: $raw" else "QR Code"
-                QrResult(subLabel = LABEL_QR_CODE, description = description, detail = raw)
-            }
-        }
-    }
-
-    /**
-     * Heuristically identifies payment / app QR codes from raw text patterns.
-     * Examples: PayPal, Venmo, Cash App, Google Pay, PhonePe (UPI links go through [PaymentQrParser]).
-     */
-    private fun detectPaymentOrAppQr(raw: String): String? {
-        val lower = raw.lowercase()
-        return when {
-            lower.contains("paypal.com") -> "PayPal Payment QR"
-            lower.contains("venmo.com") || lower.startsWith("venmo://") -> "Venmo Payment QR"
-            lower.contains("cash.app") || lower.startsWith("cashapp://") -> "Cash App Payment QR"
-            lower.contains("gpay") || lower.contains("googlepay") -> "Google Pay QR"
-            lower.contains("phonepe") -> "PhonePe Payment QR"
-            lower.contains("paytm") -> "Paytm Payment QR"
-            lower.contains("bhim") -> "BHIM UPI Payment QR"
-            lower.contains("bitcoin:") -> "Bitcoin Payment QR"
-            lower.contains("ethereum:") -> "Ethereum Payment QR"
-            lower.startsWith("otpauth://") -> "Authenticator App QR (2FA)"
-            lower.contains("instagram.com") -> "Instagram QR Code"
-            lower.contains("snapchat.com") || lower.contains("snapchat") -> "Snapchat QR Code"
-            lower.contains("wa.me") || lower.contains("whatsapp.com") -> "WhatsApp QR Code"
-            lower.contains("t.me") || lower.contains("telegram") -> "Telegram QR Code"
-            lower.contains("twitter.com") || lower.contains("x.com") -> "Twitter/X QR Code"
-            lower.contains("linkedin.com") -> "LinkedIn QR Code"
-            lower.contains("youtube.com") || lower.contains("youtu.be") -> "YouTube QR Code"
-            lower.contains("spotify.com") -> "Spotify QR Code"
-            else -> null
+            // Text payloads (Wi-Fi strings, otpauth, app links...) are described the same way as on iOS.
+            else -> described
         }
     }
 
@@ -126,11 +90,3 @@ object QrCodeDetector {
         url.take(60)
     }
 }
-
-data class QrResult(
-    val subLabel: String,
-    val description: String,
-    val detail: String,
-    /** The payee of a payment QR, used as the screenshot's title. */
-    val title: String? = null,
-)

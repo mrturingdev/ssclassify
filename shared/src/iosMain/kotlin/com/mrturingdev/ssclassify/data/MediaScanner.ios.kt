@@ -5,6 +5,7 @@ import com.mrturingdev.ssclassify.classify.ObjectSource
 import com.mrturingdev.ssclassify.classify.OcrHelper
 import com.mrturingdev.ssclassify.classify.OcrMeaningProvider
 import com.mrturingdev.ssclassify.classify.OcrTextProcessor
+import com.mrturingdev.ssclassify.classify.QrDescriber
 import com.mrturingdev.ssclassify.classify.ScreenshotCategorizer
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
@@ -112,9 +113,28 @@ actual class MediaScanner actual constructor() : ScreenshotSource {
         for (item in assets) {
             val asset = PHAsset.fetchAssetsWithLocalIdentifiers(listOf(item.id), null)
                 .firstObject() as? PHAsset ?: continue
+            val scan = ocr.scan(asset)
+            val text = OcrTextProcessor.process(scan?.lines.orEmpty())
+
+            // A QR or barcode says what the screenshot is: same handling as Android.
+            scan?.barcodePayload?.let { payload ->
+                val qr = QrDescriber.describe(payload)
+                onResult(
+                    item,
+                    ScreenshotAnalysis(
+                        rawText = text.raw,
+                        filteredText = text.filtered,
+                        detailText = text.detail,
+                        title = qr.title ?: text.title,
+                        subCategory = qr.subLabel,
+                        objectSource = ObjectSource.Ocr,
+                        description = qr.description,
+                    ),
+                )
+                continue
+            }
+
             // No image classifier on iOS yet: the object can only come from the text.
-            val lines = ocr.recognizeLines(asset)
-            val text = OcrTextProcessor.process(lines.orEmpty())
             val detected = ObjectResolver.fromText(text.filtered)
             val meaning = meaningProvider.extractMeaning(text.raw, text.filtered, text.summary)
             val category = ScreenshotCategorizer.categorize(
@@ -133,7 +153,7 @@ actual class MediaScanner actual constructor() : ScreenshotSource {
                     filteredText = text.filtered,
                     detailText = text.detail,
                     title = text.title,
-                    ocrFailed = lines == null,
+                    ocrFailed = scan == null,
                     subCategory = resolvedSubCategory,
                     objectSource = detected?.source ?: if (meaning.subCategory != null) ObjectSource.Ocr else null,
                     description = meaning.message.takeIf { it.isNotBlank() && it != "No text detected" },
