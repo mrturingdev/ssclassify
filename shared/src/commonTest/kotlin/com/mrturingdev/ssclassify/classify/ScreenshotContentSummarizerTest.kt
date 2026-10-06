@@ -172,4 +172,16 @@ class ScreenshotContentSummarizerTest {
             ScreenshotContentSummarizer.extractHighlights("Payment successful\nOrder #ORD-10001"),
         )
     }
+
+    @Test
+    fun amountsKeepTheirThousandsAndLakhGrouping() {
+        assertEquals(
+            "Payment successful • Rs. 1,250.00",
+            ScreenshotContentSummarizer.previewText("Payment successful\nAmount Rs. 1,250.00", title = "Payment successful"),
+        )
+        assertEquals(
+            listOf("Amount" to "NPR 1,25,000.00"),
+            ScreenshotContentSummarizer.extractHighlights("Loan statement\nTotal NPR 1,25,000.00"),
+        )
+    }
 }

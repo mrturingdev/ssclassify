@@ -10,12 +10,13 @@ object ScreenshotContentSummarizer {
     private val tokenSplitRegex = Regex("[\\s|•·\\-]+")
 
     private val amountRegex = Regex(
-        // Keywords are whole words: "rs" inside "users 300" is not rupees.
-        """(?i)(?:\b(?:total|grand\s*total|subtotal|amount|due|paid|price|balance|rs\.?|npr)|\$)\s*[:=-]?\s*([$€£₹]?\s*\d+(?:[.,]\d{1,2})?)"""
+        // Keywords are whole words: "rs" inside "users 300" is not rupees. Numbers keep
+        // thousands and lakh grouping ("1,250.00", "1,25,000"), not just their first group.
+        """(?i)(?:\b(?:total|grand\s*total|subtotal|amount|due|paid|price|balance|rs\.?|npr)|\$)\s*[:=-]?\s*([$€£₹]?\s*(?:\d{1,3}(?:,\d{2,3})+(?:\.\d{1,2})?|\d+(?:[.,]\d{1,2})?))"""
     )
 
     private val priorityAmountRegex = Regex(
-        """(?i)\b(?:total|grand\s*total|amount|due|paid)\s*[:=-]?\s*([$€£₹]?\s*\d+(?:[.,]\d{1,2})?)"""
+        """(?i)\b(?:total|grand\s*total|amount|due|paid)\s*[:=-]?\s*([$€£₹]?\s*(?:\d{1,3}(?:,\d{2,3})+(?:\.\d{1,2})?|\d+(?:[.,]\d{1,2})?))"""
     )
 
     private val dateRegex = Regex(

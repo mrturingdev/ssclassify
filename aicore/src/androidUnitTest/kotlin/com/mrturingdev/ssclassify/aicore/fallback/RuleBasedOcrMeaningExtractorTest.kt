@@ -86,4 +86,10 @@ class RuleBasedOcrMeaningExtractorTest {
         assertTrue(result.entities.none { it.type == EntityType.IDENTIFIER }, "got ${result.entities}")
         assertFalse(result.message.contains(".."), result.message)
     }
+
+    @Test
+    fun testExtract_amountKeepsDigitGrouping() {
+        val result = RuleBasedOcrMeaningExtractor.extract("Payment successful\nAmount Rs. 1,250.00\nFee NPR 1,25,000")
+        assertEquals(listOf("1,250.00", "1,25,000"), result.entities.filter { it.type == EntityType.AMOUNT }.map { it.value })
+    }
 }
