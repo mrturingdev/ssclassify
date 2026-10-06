@@ -4,23 +4,23 @@ import com.mrturingdev.ssclassify.model.ImageCategory
 import kotlin.random.Random
 
 /**
- * What the user agreed to send. Crash reports and quality stats are both on
- * by default and can each be turned off. Neither ever carries screenshot content.
+ * What the user agreed to send. Crash reports are on by default; quality
+ * stats are opt-in. Neither ever carries screenshot content.
  */
 data class TelemetryConsent(val crashReports: Boolean, val qualityStats: Boolean) {
     val any: Boolean get() = crashReports || qualityStats
 
     companion object {
-        val Default = TelemetryConsent(crashReports = true, qualityStats = true)
+        val Default = TelemetryConsent(crashReports = true, qualityStats = false)
     }
 }
 
 /**
- * The one-time card that explains telemetry: [NewInstall] for new installs
+ * The one-time card that asks about telemetry: [OptIn] for new installs
  * (after their first scan), [UpdateNotice] for people who had the app
- * before telemetry existed. Both say what is on and offer to turn stats off.
+ * before telemetry existed.
  */
-enum class PrivacyPrompt { NewInstall, UpdateNotice }
+enum class PrivacyPrompt { OptIn, UpdateNotice }
 
 /** Where consent, the crash-report install ID and the pending card persist. */
 interface TelemetryStore {
@@ -68,7 +68,7 @@ class Telemetry(
      */
     fun pendingPrompt(libraryIsEmpty: Boolean): PrivacyPrompt? {
         if (store.consent == null && store.pendingPrompt == null) {
-            store.pendingPrompt = if (libraryIsEmpty) PrivacyPrompt.NewInstall else PrivacyPrompt.UpdateNotice
+            store.pendingPrompt = if (libraryIsEmpty) PrivacyPrompt.OptIn else PrivacyPrompt.UpdateNotice
         }
         return store.pendingPrompt
     }
@@ -103,7 +103,7 @@ class Telemetry(
 private fun randomInstallId(): String =
     Random.nextBytes(16).joinToString("") { (it.toInt() and 0xff).toString(16).padStart(2, '0') }
 
-/** Quality events (on by default, can be turned off). Adding one means adding it here, in code review. */
+/** Opt-in quality events. Adding one means adding it here, in code review. */
 sealed class QualityEvent(val name: String) {
     abstract fun attributes(): Map<String, String>
 

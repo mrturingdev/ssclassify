@@ -23,23 +23,23 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.mrturingdev.ssclassify.telemetry.PrivacyPrompt
 
-/** The one-time telemetry card on Home; [onAnswer] gets whether to keep sharing quality stats. */
+/** The one-time telemetry card on Home; [onAnswer] gets whether to share quality stats. */
 @Composable
 internal fun PrivacyPromptCard(prompt: PrivacyPrompt, onAnswer: (shareQualityStats: Boolean) -> Unit) {
     val (title, body, decline, accept) = when (prompt) {
-        PrivacyPrompt.NewInstall -> listOf(
-            "Anonymous stats help improve categorization",
-            "The app shares counts like scan time and category corrections, and crash reports. " +
+        PrivacyPrompt.OptIn -> listOf(
+            "Help improve categorization?",
+            "Share anonymous stats like scan time and category corrections. " +
                 "Never your screenshots or their text. Change anytime in Settings.",
-            "Turn off stats",
-            "OK",
+            "No thanks",
+            "Share",
         )
         PrivacyPrompt.UpdateNotice -> listOf(
-            "This update adds anonymous crash reports and stats",
-            "Counts like scan time and category corrections help improve categorization. " +
-                "They never include your screenshots or their text. Change anytime in Settings.",
-            "Turn off stats",
+            "This update adds anonymous crash reports",
+            "They never include your screenshots or their text. You can also share " +
+                "anonymous stats to help improve categorization. Change anytime in Settings.",
             "OK",
+            "Share stats too",
         )
     }
     Card(
