@@ -23,6 +23,10 @@ import com.mrturingdev.ssclassify.App
 import com.mrturingdev.ssclassify.android.widget.RecentScreenshotsWidgetProvider
 import com.mrturingdev.ssclassify.data.initAndroid
 import com.mrturingdev.ssclassify.data.ocrLinesJson
+import com.mrturingdev.ssclassify.telemetry.NoopTelemetrySink
+import com.mrturingdev.ssclassify.telemetry.SettingsTelemetryStore
+import com.mrturingdev.ssclassify.telemetry.Telemetry
+import com.mrturingdev.ssclassify.telemetry.TelemetryConfig
 import com.mrturingdev.ssclassify.widget.DeepLinks
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -30,6 +34,8 @@ import kotlinx.coroutines.withContext
 import java.io.File
 
 class MainActivity : ComponentActivity() {
+
+    private lateinit var telemetry: Telemetry
 
     private var contentSet = false
 
@@ -43,6 +49,7 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
         super.onCreate(savedInstanceState)
         initAndroid(this)
+        telemetry = appTelemetry(applicationContext)
         openRequestedScreenshot(intent)
         exportRequestedOcrLines(intent)
 
@@ -63,6 +70,7 @@ class MainActivity : ComponentActivity() {
                     isPermissionGranted = permissionGranted,
                     pinWidget = widgetPinner(),
                     exportOcrLines = if (isDebuggable()) ::shareOcrLines else null,
+                    telemetry = telemetry,
                 )
             }
         }
@@ -135,5 +143,21 @@ class MainActivity : ComponentActivity() {
 
     private companion object {
         const val EXTRA_EXPORT_OCR_IDS = "export_ocr_ids"
+    }
+}
+
+private var processTelemetry: Telemetry? = null
+
+/**
+ * One telemetry per process, started on first use so crashes before any UI
+ * are covered. Release builds with a DSN report to Sentry; debug and
+ * benchmark builds, and builds without a DSN, send nothing.
+ */
+private fun appTelemetry(context: android.content.Context): Telemetry = processTelemetry ?: run {
+    val dsn = TelemetryConfig.SENTRY_DSN
+    val sink = if (BuildConfig.BUILD_TYPE == "release" && dsn.isNotEmpty()) SentryTelemetrySink(context, dsn) else NoopTelemetrySink
+    Telemetry(sink, SettingsTelemetryStore()).also {
+        it.start()
+        processTelemetry = it
     }
 }

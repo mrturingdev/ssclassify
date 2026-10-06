@@ -27,6 +27,7 @@ import com.mrturingdev.ssclassify.classify.QrCodeDetector
 import com.mrturingdev.ssclassify.classify.ScreenshotCategorizer
 import com.mrturingdev.ssclassify.classify.TensorFlowVisionHelper
 import com.mrturingdev.ssclassify.db.ScreenshotDatabase
+import com.mrturingdev.ssclassify.telemetry.AiCoreState
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
@@ -146,6 +147,9 @@ actual class MediaScanner actual constructor() : ScreenshotSource {
         return assets
     }
 
+    private var lastAiCoreState = AiCoreState.NotOnPlatform
+    override val aiCoreState: AiCoreState get() = lastAiCoreState
+
     override suspend fun analyze(
         assets: List<ScreenshotAsset>,
         onResult: (ScreenshotAsset, ScreenshotAnalysis) -> Unit,
@@ -159,6 +163,7 @@ actual class MediaScanner actual constructor() : ScreenshotSource {
             for (asset in assets) {
                 onResult(asset, analyzeOne(context, Uri.parse(asset.id), tfHelper, ocrHelper, meaningProvider))
             }
+            lastAiCoreState = meaningProvider.aiCoreState
         } finally {
             tfHelper.close()
             ocrHelper.close()
@@ -182,10 +187,12 @@ actual class MediaScanner actual constructor() : ScreenshotSource {
             loadBitmap(context, mediaUri)
         } catch (e: Exception) {
             null
-        } ?: return ScreenshotAnalysis("")
+        } ?: return ScreenshotAnalysis("", ocrFailed = true)
 
         try {
-            val lines = ocrHelper.recognizeLines(bitmap)
+            val recognized = ocrHelper.recognizeLines(bitmap)
+            val ocrFailed = recognized == null
+            val lines = recognized.orEmpty()
             val text = OcrTextProcessor.process(lines)
 
             // --- QR Code detection (runs first; if found we skip other classifiers) ---
@@ -197,6 +204,7 @@ actual class MediaScanner actual constructor() : ScreenshotSource {
                     detailText = text.detail,
                     title = text.title,
                     subCategory = qrResult.subLabel,
+                    ocrFailed = ocrFailed,
                     objectSource = ObjectSource.Ocr,
                     description = qrResult.description,
                 )
@@ -245,9 +253,10 @@ actual class MediaScanner actual constructor() : ScreenshotSource {
                 subCategory = resolvedSubCategory,
                 objectSource = finalDetected?.source ?: if (meaning.subCategory != null) ObjectSource.Ocr else null,
                 description = finalDescription,
+                ocrFailed = ocrFailed,
             )
         } catch (e: Exception) {
-            return ScreenshotAnalysis("") // a failed model run must not abort the whole scan
+            return ScreenshotAnalysis("", ocrFailed = true) // a failed model run must not abort the whole scan
         } finally {
             bitmap.recycle()
         }
@@ -336,7 +345,7 @@ fun ocrLinesJson(context: Context, id: String): String? {
     val bitmap = loadBitmap(context, Uri.parse(id)) ?: return null
     val ocr = OcrHelper()
     val lines = try {
-        ocr.recognizeLines(bitmap)
+        ocr.recognizeLines(bitmap).orEmpty()
     } finally {
         ocr.close()
     }

@@ -135,6 +135,28 @@ class ScreenshotRepositoryTest {
     }
 
     @Test
+    fun scanReportsStatsOnlyWhenItAnalyzedSomething() = runBlocking {
+        val source = object : ScreenshotSource {
+            override suspend fun ensureAccess() = true
+            override suspend fun listScreenshots() = listOf(asset("a"), asset("b"), asset("c"))
+            override suspend fun analyze(
+                assets: List<ScreenshotAsset>,
+                onResult: (ScreenshotAsset, ScreenshotAnalysis) -> Unit,
+            ) = assets.forEach {
+                onResult(it, when (it.id) {
+                    "a" -> ScreenshotAnalysis("Receipt", title = "Receipt")
+                    "b" -> ScreenshotAnalysis("", ocrFailed = true)
+                    else -> ScreenshotAnalysis("Gate 4")
+                })
+            }
+        }
+        val repo = repository(source)
+        val first = assertIs<ScanOutcome.Success>(repo.scan())
+        assertEquals(ScanStats(analyzed = 3, ocrFailures = 1, untitled = 2), first.stats)
+        assertEquals(null, assertIs<ScanOutcome.Success>(repo.scan()).stats, "nothing new, so no stats")
+    }
+
+    @Test
     fun reanalyzeAllReadsEveryScreenshotAgainAndKeepsCorrections() = runBlocking {
         val source = FakeSource(listOf(asset("a"), asset("b")), mapOf("a" to "Receipt Subtotal Total Tax", "b" to "invoice"))
         val repo = repository(source)

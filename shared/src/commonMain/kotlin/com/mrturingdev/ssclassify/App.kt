@@ -28,9 +28,13 @@ import com.mrturingdev.ssclassify.settings.ApplySystemTheme
 import com.mrturingdev.ssclassify.settings.ThemeMode
 import com.mrturingdev.ssclassify.settings.loadThemeMode
 import com.mrturingdev.ssclassify.settings.saveThemeMode
+import com.mrturingdev.ssclassify.telemetry.CountBucket
+import com.mrturingdev.ssclassify.telemetry.DurationBucket
 import com.mrturingdev.ssclassify.telemetry.NoopTelemetrySink
 import com.mrturingdev.ssclassify.telemetry.PrivacyPrompt
+import com.mrturingdev.ssclassify.telemetry.QualityEvent
 import com.mrturingdev.ssclassify.telemetry.SettingsTelemetryStore
+import com.mrturingdev.ssclassify.telemetry.ShareBucket
 import com.mrturingdev.ssclassify.telemetry.Telemetry
 import com.mrturingdev.ssclassify.ui.HomeScreen
 import com.mrturingdev.ssclassify.ui.SettingsScreen
@@ -38,6 +42,7 @@ import com.mrturingdev.ssclassify.widget.DeepLinks
 import com.mrturingdev.ssclassify.widget.publishWidgetSnapshot
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import kotlin.time.TimeSource
 
 // Tokens from .design/DESIGN.md (brunopetrovic/apple)
 private val ActionBlue = Color(0xFF0066CC)
@@ -66,6 +71,11 @@ fun App(
     pinWidget: (() -> Unit)? = null,
     /** Debug builds only: shares a screenshot's OCR lines as calibration fixture JSON; null hides the action. */
     exportOcrLines: ((id: String) -> Unit)? = null,
+    /**
+     * Started by the platform entry point, before any UI, so early crashes are
+     * reported; null (previews, tests) sends nothing.
+     */
+    telemetry: Telemetry? = null,
 ) {
     var themeMode by remember { mutableStateOf(loadThemeMode()) }
     val darkTheme = when (themeMode) {
@@ -106,8 +116,7 @@ fun App(
         val loader = remember { ThumbnailLoader() }
         val scope = rememberCoroutineScope()
 
-        // ponytail: NoopTelemetrySink until the Sentry sink lands (needs the project's DSN).
-        val telemetry = remember { Telemetry(NoopTelemetrySink, SettingsTelemetryStore()) }
+        val telemetry = telemetry ?: remember { Telemetry(NoopTelemetrySink, SettingsTelemetryStore()) }
         var telemetryConsent by remember { mutableStateOf(telemetry.consent) }
         var privacyPrompt by remember { mutableStateOf<PrivacyPrompt?>(null) }
 
@@ -126,7 +135,21 @@ fun App(
             scope.launch {
                 do {
                     rescanRequested = false
-                    outcome = if (isPermissionGranted) repository.scan() else ScanOutcome.Failure(PERMISSION_DENIED)
+                    val started = TimeSource.Monotonic.markNow()
+                    val result = if (isPermissionGranted) repository.scan() else ScanOutcome.Failure(PERMISSION_DENIED)
+                    outcome = result
+                    // Only scans that analyzed something, so this is never a per-launch ping.
+                    (result as? ScanOutcome.Success)?.stats?.let { stats ->
+                        telemetry.record(
+                            QualityEvent.ScanFinished(
+                                screenshots = CountBucket.of(stats.analyzed),
+                                duration = DurationBucket.of(started.elapsedNow().inWholeMilliseconds),
+                                ocrFailures = CountBucket.of(stats.ocrFailures),
+                                aiCore = scanner.aiCoreState,
+                                untitled = ShareBucket.of(stats.untitled, stats.analyzed),
+                            ),
+                        )
+                    }
                 } while (rescanRequested)
                 scanning = false
             }
@@ -134,7 +157,6 @@ fun App(
 
         // Show what was analyzed last time right away, then catch up incrementally.
         LaunchedEffect(Unit) {
-            telemetry.start()
             if (!isPermissionGranted) return@LaunchedEffect
             val cached = repository.cached()
             privacyPrompt = telemetry.pendingPrompt(libraryIsEmpty = cached.isEmpty())
@@ -186,6 +208,7 @@ fun App(
                     privacyPrompt = null
                 },
                 onReanalyzeAll = {
+                    telemetry.record(QualityEvent.ReanalyzeAllUsed)
                     scope.launch {
                         repository.markAllForReanalysis()
                         // Back home, where the usual scan progress shows.
@@ -223,6 +246,11 @@ fun App(
                     searchResults = searchResults,
                     onCategoryChange = { id, category ->
                         scope.launch {
+                            val before = (outcome as? ScanOutcome.Success)?.images?.firstOrNull { it.id == id }?.category
+                            // A reset (null) isn't a correction.
+                            if (category != null && before != null && before != category) {
+                                telemetry.record(QualityEvent.CategoryCorrected(from = before, to = category))
+                            }
                             repository.setCategory(id, category)
                             // Reload so grid, chip counts and (via the search effect) results reflect it.
                             outcome = ScanOutcome.Success(repository.cached())

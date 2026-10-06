@@ -1,10 +1,14 @@
 package com.mrturingdev.ssclassify.classify
 
+import com.mrturingdev.ssclassify.telemetry.AiCoreState
+
 /**
  * iOS implementation of [OcrMeaningProvider].
  * Provides heuristic semantic summarization and highlights extraction on iOS platforms.
  */
 actual class OcrMeaningProvider actual constructor() {
+
+    actual val aiCoreState: AiCoreState = AiCoreState.NotOnPlatform
 
     actual suspend fun extractMeaning(
         rawOcrText: String,

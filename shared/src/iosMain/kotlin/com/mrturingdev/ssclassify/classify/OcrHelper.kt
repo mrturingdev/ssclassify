@@ -28,7 +28,8 @@ class OcrHelper {
     }
 
     /** Vision text lines with boxes flipped to the shared top-left normalized space. */
-    fun recognizeLines(asset: PHAsset, maxDimension: Double = 1600.0): List<OcrLine> {
+    /** Null when the image can't be loaded or Vision fails, as opposed to a screen with no text. */
+    fun recognizeLines(asset: PHAsset, maxDimension: Double = 1600.0): List<OcrLine>? {
         var image: UIImage? = null
         manager.requestImageForAsset(
             asset,
@@ -36,14 +37,14 @@ class OcrHelper {
             PHImageContentModeAspectFit,
             options,
         ) { result, _ -> image = result }
-        val cgImage = image?.CGImage ?: return emptyList()
+        val cgImage = image?.CGImage ?: return null
 
         val request = VNRecognizeTextRequest().apply {
             recognitionLevel = VNRequestTextRecognitionLevelAccurate
             usesLanguageCorrection = true
         }
         val handler = VNImageRequestHandler(cgImage, emptyMap<Any?, Any?>())
-        if (!handler.performRequests(listOf(request), null)) return emptyList()
+        if (!handler.performRequests(listOf(request), null)) return null
 
         return request.results.orEmpty().mapNotNull { result ->
             val observation = result as? VNRecognizedTextObservation ?: return@mapNotNull null

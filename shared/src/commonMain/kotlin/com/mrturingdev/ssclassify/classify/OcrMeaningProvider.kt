@@ -1,5 +1,7 @@
 package com.mrturingdev.ssclassify.classify
 
+import com.mrturingdev.ssclassify.telemetry.AiCoreState
+
 /**
  * Platform-independent representation of semantic meaning extracted from OCR text.
  *
@@ -29,6 +31,9 @@ data class ExtractedOcrMeaning(
  * On iOS, this runs fast heuristic extraction.
  */
 expect class OcrMeaningProvider() {
+    /** On-device Gemini Nano availability, for the opt-in quality stats. */
+    val aiCoreState: AiCoreState
+
     /** [summaryText] is [OcrText.summary]: filtered rows ranked for the title (screen focus, font size, ALL CAPS). */
     suspend fun extractMeaning(
         rawOcrText: String,

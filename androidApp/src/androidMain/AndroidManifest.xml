@@ -25,6 +25,8 @@
         android:supportsRtl="true"
         android:theme="@android:style/Theme.Material.Light.NoActionBar">
 
+        <!-- Sentry starts from code, and only with the user's consent (see SentryTelemetrySink). -->
+        <meta-data android:name="io.sentry.auto-init" android:value="false" />
         <!-- Lets :classyBenchmark trace frame timing on a non-debuggable build. -->
         <profileable android:shell="true" tools:targetApi="29" />
 

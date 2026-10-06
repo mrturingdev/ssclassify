@@ -2,12 +2,17 @@ package com.mrturingdev.ssclassify.data
 
 import com.mrturingdev.ssclassify.classify.ObjectSource
 import com.mrturingdev.ssclassify.model.ImageRecord
+import com.mrturingdev.ssclassify.telemetry.AiCoreState
 import kotlinx.coroutines.flow.Flow
 
 sealed interface ScanOutcome {
-    data class Success(val images: List<ImageRecord>) : ScanOutcome
+    /** [stats] describes what this scan analyzed; null when nothing was. */
+    data class Success(val images: List<ImageRecord>, val stats: ScanStats? = null) : ScanOutcome
     data class Failure(val reason: String) : ScanOutcome
 }
+
+/** Counts from one scan's analysis pass, for the opt-in quality stats. */
+data class ScanStats(val analyzed: Int, val ocrFailures: Int, val untitled: Int)
 
 /** Cheap photo-library metadata; [modifiedMillis] changes whenever the file does. */
 data class ScreenshotAsset(
@@ -35,6 +40,8 @@ data class ScreenshotAnalysis(
     val subCategory: String? = null,
     val objectSource: ObjectSource? = null,
     val description: String? = null,
+    /** True when the image couldn't be read or OCR threw, as opposed to a screen with no text. */
+    val ocrFailed: Boolean = false,
 )
 
 /** Where screenshots come from; [ScreenshotRepository] only talks to this. */
@@ -50,6 +57,9 @@ interface ScreenshotSource {
 
     /** Permanently deletes media assets by their IDs. Returns the list of successfully deleted IDs. */
     suspend fun deleteScreenshots(ids: List<String>): List<String> = emptyList()
+
+    /** On-device Gemini Nano availability as of the last [analyze]. */
+    val aiCoreState: AiCoreState get() = AiCoreState.NotOnPlatform
 }
 
 /**

@@ -112,7 +112,8 @@ actual class MediaScanner actual constructor() : ScreenshotSource {
             val asset = PHAsset.fetchAssetsWithLocalIdentifiers(listOf(item.id), null)
                 .firstObject() as? PHAsset ?: continue
             // No image classifier on iOS yet: the object can only come from the text.
-            val text = OcrTextProcessor.process(ocr.recognizeLines(asset))
+            val lines = ocr.recognizeLines(asset)
+            val text = OcrTextProcessor.process(lines.orEmpty())
             val detected = ObjectResolver.fromText(text.filtered)
             val meaning = meaningProvider.extractMeaning(text.raw, text.filtered, text.summary)
             onResult(
@@ -122,6 +123,7 @@ actual class MediaScanner actual constructor() : ScreenshotSource {
                     filteredText = text.filtered,
                     detailText = text.detail,
                     title = text.title,
+                    ocrFailed = lines == null,
                     subCategory = detected?.label ?: meaning.subCategory,
                     objectSource = detected?.source ?: if (meaning.subCategory != null) ObjectSource.Ocr else null,
                     description = meaning.message.takeIf { it.isNotBlank() && it != "No text detected" },

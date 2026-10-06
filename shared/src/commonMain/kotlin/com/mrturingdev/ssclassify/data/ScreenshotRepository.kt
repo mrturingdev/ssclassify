@@ -74,8 +74,8 @@ class ScreenshotRepository(
             ScanOutcome.Failure(PERMISSION_DENIED)
         } else {
             withContext(Dispatchers.IO) {
-                sync()
-                ScanOutcome.Success(loadAll())
+                val stats = sync()
+                ScanOutcome.Success(loadAll(), stats.takeIf { it.analyzed > 0 })
             }
         }
     } catch (e: CancellationException) {
@@ -84,7 +84,7 @@ class ScreenshotRepository(
         ScanOutcome.Failure(e.message ?: "Unexpected scan error")
     }
 
-    private suspend fun sync() {
+    private suspend fun sync(): ScanStats {
         val assets = source.listScreenshots()
         val known = queries.selectStamps().executeAsList().associate { it.id to it.modified_millis }
         val currentIds = assets.mapTo(HashSet()) { it.id }
@@ -98,7 +98,13 @@ class ScreenshotRepository(
 
         // Each result is saved as it lands, so an interrupted scan keeps its progress.
         val pending = assets.filter { known[it.id] != it.modifiedMillis }
+        var analyzed = 0
+        var ocrFailures = 0
+        var untitled = 0
         source.analyze(pending) { asset, analysis ->
+            analyzed++
+            if (analysis.ocrFailed) ocrFailures++
+            if (analysis.title == null) untitled++
             queries.transaction {
                 queries.deleteById(asset.id)
                 queries.insert(
@@ -122,6 +128,7 @@ class ScreenshotRepository(
                 )
             }
         }
+        return ScanStats(analyzed, ocrFailures, untitled)
     }
 
     private fun loadAll(): List<ImageRecord> {
