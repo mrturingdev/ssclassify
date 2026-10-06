@@ -120,6 +120,7 @@ import com.mrturingdev.ssclassify.data.ScanOutcome
 import com.mrturingdev.ssclassify.data.ThumbnailLoader
 import com.mrturingdev.ssclassify.model.CategorySource
 import com.mrturingdev.ssclassify.model.ImageCategory
+import com.mrturingdev.ssclassify.telemetry.PrivacyPrompt
 import com.mrturingdev.ssclassify.model.ImageRecord
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -142,6 +143,9 @@ fun HomeScreen(
     onDetailOpened: () -> Unit = {},
     /** Debug builds only: exports a screenshot's OCR lines as fixture JSON; null hides the action. */
     onExportOcrLines: ((id: String) -> Unit)? = null,
+    /** The one-time telemetry card, or null when there is nothing to ask. */
+    privacyPrompt: PrivacyPrompt? = null,
+    onPrivacyAnswer: (shareQualityStats: Boolean) -> Unit = {},
 ) {
     var selected by rememberSaveable { mutableStateOf(ALL_KEY) }
     var selectedSubCategory by rememberSaveable { mutableStateOf<String?>(null) }
@@ -265,6 +269,9 @@ fun HomeScreen(
                             query = query,
                             onQueryChange = onQueryChange,
                             images = searchResults ?: outcome.images,
+                            // Not while searching: the card is about the library, not the results.
+                            privacyPrompt = privacyPrompt.takeUnless { searching },
+                            onPrivacyAnswer = onPrivacyAnswer,
                             emptyMessage = if (searching) {
                                 "No screenshots contain \u201C${query.trim()}\u201D."
                             } else {
@@ -445,6 +452,8 @@ private fun CategoryBrowser(
     query: String,
     onQueryChange: (String) -> Unit,
     images: List<ImageRecord>,
+    privacyPrompt: PrivacyPrompt?,
+    onPrivacyAnswer: (shareQualityStats: Boolean) -> Unit,
     emptyMessage: String,
     onRescan: (() -> Unit)?,
     thumbnailLoader: ThumbnailLoader,
@@ -510,6 +519,7 @@ private fun CategoryBrowser(
                 )
             },
             bottom = {
+                privacyPrompt?.let { PrivacyPromptCard(it, onPrivacyAnswer) }
                 if (isCleanupMode) {
                     if (cleanupImages.isNotEmpty()) {
                         CleanupBanner(total = cleanupImages.size, blankCount = blankCount, uncatCount = uncatCount)

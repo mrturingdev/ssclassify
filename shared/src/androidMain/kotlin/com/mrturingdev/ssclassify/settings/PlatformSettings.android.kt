@@ -43,6 +43,12 @@ actual fun saveThemeMode(mode: ThemeMode) {
     prefs.edit().putString(KEY_THEME, mode.name).apply()
 }
 
+actual fun loadString(key: String): String? = prefs.getString(key, null)
+
+actual fun saveString(key: String, value: String?) {
+    prefs.edit().apply { if (value == null) remove(key) else putString(key, value) }.apply()
+}
+
 // Play has one review flow for stars and text, so [writeReview] changes nothing here.
 actual fun openStoreReview(writeReview: Boolean) {
     val id = context.packageName

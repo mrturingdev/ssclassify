@@ -6,7 +6,6 @@ import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertNotEquals
 import kotlin.test.assertNull
-import kotlin.test.assertTrue
 
 class TelemetryTest {
 
@@ -32,6 +31,7 @@ class TelemetryTest {
     private class MemoryStore : TelemetryStore {
         override var consent: TelemetryConsent? = null
         override var installId: String? = null
+        override var pendingPrompt: PrivacyPrompt? = null
     }
 
     private var ids = 0
@@ -41,18 +41,50 @@ class TelemetryTest {
     private val event = QualityEvent.CategoryCorrected(ImageCategory.Receipts, ImageCategory.Foods)
 
     @Test
-    fun defaultsToCrashReportsOnlyAndAsksOnce() {
+    fun defaultsToCrashReportsOnly() {
         val sink = FakeSink()
         val telemetry = telemetry(sink)
-        assertTrue(telemetry.needsChoice)
         telemetry.start()
         assertEquals(Triple("id-1", true, false), sink.started)
 
         telemetry.record(event)
         assertEquals(emptyList(), sink.logs, "quality stats are opt-in")
+    }
 
-        telemetry.updateConsent(TelemetryConsent.Default)
-        assertFalse(telemetry.needsChoice)
+    @Test
+    fun newInstallsGetTheOptInCardUntilTheyAnswerEvenAfterScanning() {
+        val store = MemoryStore()
+        assertEquals(PrivacyPrompt.OptIn, telemetry(FakeSink(), store).pendingPrompt(libraryIsEmpty = true))
+        // Next launch: the library has screenshots now, but this is still a new install.
+        val sink = FakeSink()
+        val telemetry = telemetry(sink, store)
+        assertEquals(PrivacyPrompt.OptIn, telemetry.pendingPrompt(libraryIsEmpty = false))
+
+        telemetry.answerPrompt(shareQualityStats = true)
+        assertNull(telemetry.pendingPrompt(libraryIsEmpty = false))
+        assertEquals(TelemetryConsent(crashReports = true, qualityStats = true), telemetry.consent)
+        assertEquals(Triple("id-1", true, true), sink.started)
+    }
+
+    @Test
+    fun existingUsersGetTheUpdateNoticeAndKeepCrashReportsOnWhenDeclining() {
+        val telemetry = telemetry(FakeSink())
+        assertEquals(PrivacyPrompt.UpdateNotice, telemetry.pendingPrompt(libraryIsEmpty = false))
+        telemetry.answerPrompt(shareQualityStats = false)
+        assertNull(telemetry.pendingPrompt(libraryIsEmpty = false))
+        assertEquals(TelemetryConsent.Default, telemetry.consent)
+    }
+
+    @Test
+    fun choosingInSettingsAnswersTheCard() {
+        val before = telemetry(FakeSink())
+        before.updateConsent(TelemetryConsent(crashReports = false, qualityStats = false))
+        assertNull(before.pendingPrompt(libraryIsEmpty = true), "chose before any card was decided")
+
+        val after = telemetry(FakeSink())
+        assertEquals(PrivacyPrompt.OptIn, after.pendingPrompt(libraryIsEmpty = true))
+        after.updateConsent(TelemetryConsent(crashReports = true, qualityStats = true))
+        assertNull(after.pendingPrompt(libraryIsEmpty = false), "a Settings change dismisses the card")
     }
 
     @Test

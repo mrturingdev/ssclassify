@@ -28,6 +28,10 @@ import com.mrturingdev.ssclassify.settings.ApplySystemTheme
 import com.mrturingdev.ssclassify.settings.ThemeMode
 import com.mrturingdev.ssclassify.settings.loadThemeMode
 import com.mrturingdev.ssclassify.settings.saveThemeMode
+import com.mrturingdev.ssclassify.telemetry.NoopTelemetrySink
+import com.mrturingdev.ssclassify.telemetry.PrivacyPrompt
+import com.mrturingdev.ssclassify.telemetry.SettingsTelemetryStore
+import com.mrturingdev.ssclassify.telemetry.Telemetry
 import com.mrturingdev.ssclassify.ui.HomeScreen
 import com.mrturingdev.ssclassify.ui.SettingsScreen
 import com.mrturingdev.ssclassify.widget.DeepLinks
@@ -102,6 +106,11 @@ fun App(
         val loader = remember { ThumbnailLoader() }
         val scope = rememberCoroutineScope()
 
+        // ponytail: NoopTelemetrySink until the Sentry sink lands (needs the project's DSN).
+        val telemetry = remember { Telemetry(NoopTelemetrySink, SettingsTelemetryStore()) }
+        var telemetryConsent by remember { mutableStateOf(telemetry.consent) }
+        var privacyPrompt by remember { mutableStateOf<PrivacyPrompt?>(null) }
+
         var scanning by remember { mutableStateOf(false) }
         var rescanRequested by remember { mutableStateOf(false) }
         var outcome by remember { mutableStateOf<ScanOutcome?>(null) }
@@ -125,8 +134,10 @@ fun App(
 
         // Show what was analyzed last time right away, then catch up incrementally.
         LaunchedEffect(Unit) {
+            telemetry.start()
             if (!isPermissionGranted) return@LaunchedEffect
             val cached = repository.cached()
+            privacyPrompt = telemetry.pendingPrompt(libraryIsEmpty = cached.isEmpty())
             if (cached.isNotEmpty()) {
                 outcome = ScanOutcome.Success(cached)
                 triggerScan()
@@ -168,6 +179,12 @@ fun App(
                 },
                 pinWidget = pinWidget,
                 libraryCount = (outcome as? ScanOutcome.Success)?.images?.size ?: 0,
+                consent = telemetryConsent,
+                onConsentChange = {
+                    telemetry.updateConsent(it)
+                    telemetryConsent = it
+                    privacyPrompt = null
+                },
                 onReanalyzeAll = {
                     scope.launch {
                         repository.markAllForReanalysis()
@@ -192,6 +209,15 @@ fun App(
                     thumbnailLoader = loader,
                     onScan = ::triggerScan,
                     onExportOcrLines = exportOcrLines,
+                    // New installs see the card once their first scan has found screenshots.
+                    privacyPrompt = privacyPrompt.takeIf {
+                        it == PrivacyPrompt.UpdateNotice || (outcome as? ScanOutcome.Success)?.images?.isNotEmpty() == true
+                    },
+                    onPrivacyAnswer = { share ->
+                        telemetry.answerPrompt(share)
+                        telemetryConsent = telemetry.consent
+                        privacyPrompt = null
+                    },
                     query = query,
                     onQueryChange = { query = it },
                     searchResults = searchResults,

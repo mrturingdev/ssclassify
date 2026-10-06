@@ -15,11 +15,19 @@ data class TelemetryConsent(val crashReports: Boolean, val qualityStats: Boolean
     }
 }
 
-/** Where consent and the crash-report install ID persist. */
+/**
+ * The one-time card that asks about telemetry: [OptIn] for new installs
+ * (after their first scan), [UpdateNotice] for people who had the app
+ * before telemetry existed.
+ */
+enum class PrivacyPrompt { OptIn, UpdateNotice }
+
+/** Where consent, the crash-report install ID and the pending card persist. */
 interface TelemetryStore {
-    /** Null until the user makes a choice, so the app knows to ask. */
+    /** Null until the user makes a choice. */
     var consent: TelemetryConsent?
     var installId: String?
+    var pendingPrompt: PrivacyPrompt?
 }
 
 /** The reporting backend (Sentry); consent decisions are made by [Telemetry], not here. */
@@ -49,14 +57,29 @@ class Telemetry(
 ) {
     val consent: TelemetryConsent get() = store.consent ?: TelemetryConsent.Default
 
-    /** True until the user has chosen, so the opt-in card can be shown once. */
-    val needsChoice: Boolean get() = store.consent == null
-
     /** Call once at launch. */
     fun start() = apply()
 
+    /**
+     * The card to show, or null once answered. Which card is decided on the
+     * first launch with telemetry and then kept: by the next launch a new
+     * user who hasn't answered yet also has screenshots, so the library
+     * can't tell them apart from someone who updated.
+     */
+    fun pendingPrompt(libraryIsEmpty: Boolean): PrivacyPrompt? {
+        if (store.consent == null && store.pendingPrompt == null) {
+            store.pendingPrompt = if (libraryIsEmpty) PrivacyPrompt.OptIn else PrivacyPrompt.UpdateNotice
+        }
+        return store.pendingPrompt
+    }
+
+    /** Either card's answer; crash reports keep their current setting. */
+    fun answerPrompt(shareQualityStats: Boolean) = updateConsent(consent.copy(qualityStats = shareQualityStats))
+
+    /** Also answers any pending card: choosing in Settings counts. */
     fun updateConsent(consent: TelemetryConsent) {
         store.consent = consent
+        store.pendingPrompt = null
         // A new ID after crash reports are switched back on, so old and new reports can't be joined.
         if (!consent.crashReports) store.installId = null
         apply()

@@ -41,6 +41,12 @@ actual fun saveThemeMode(mode: ThemeMode) {
     defaults.setObject(mode.name, KEY_THEME)
 }
 
+actual fun loadString(key: String): String? = defaults.stringForKey(key)
+
+actual fun saveString(key: String, value: String?) {
+    if (value == null) defaults.removeObjectForKey(key) else defaults.setObject(value, key)
+}
+
 actual fun openStoreReview(writeReview: Boolean) {
     val appId = (NSBundle.mainBundle.objectForInfoDictionaryKey(APP_STORE_ID_KEY) as? String).orEmpty()
     val writeUrl = NSURL.URLWithString("https://apps.apple.com/app/id$appId?action=write-review")
