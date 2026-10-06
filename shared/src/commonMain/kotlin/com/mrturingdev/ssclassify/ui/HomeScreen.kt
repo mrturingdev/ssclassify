@@ -837,7 +837,8 @@ private fun ImageCard(
                 modifier = Modifier.fillMaxSize(),
             )
         }
-        val summary = remember(image.ocrText, image.rawOcrText, image.description, image.category, image.subCategory) {
+        val summary = remember(image) {
+            // Keyed on the whole record: the preview reads its title too, which re-analysis can change alone.
             ScreenshotContentSummarizer.previewText(image)
         }
         val hasSummary = summary.isNotBlank() && summary != "No text detected"
@@ -1129,7 +1130,8 @@ private fun ImageDetailContent(
         }
 
         // Summary card
-        val summary = remember(image.ocrText, image.rawOcrText, image.description, image.category, image.subCategory) {
+        val summary = remember(image) {
+            // Keyed on the whole record: the preview reads its title too, which re-analysis can change alone.
             ScreenshotContentSummarizer.previewText(image)
         }
         if (summary.isNotBlank() && summary != "No text detected") {
