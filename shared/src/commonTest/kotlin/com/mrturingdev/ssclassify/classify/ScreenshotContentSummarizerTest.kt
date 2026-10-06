@@ -1,5 +1,7 @@
 package com.mrturingdev.ssclassify.classify
 
+import com.mrturingdev.ssclassify.model.ImageCategory
+import com.mrturingdev.ssclassify.model.ImageRecord
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
@@ -191,5 +193,17 @@ class ScreenshotContentSummarizerTest {
             "3. Build a life dashboard",
             ScreenshotContentSummarizer.previewText("3. Build a life dashboard\nRevenue $1.2M\n25K", title = "3. Build a life dashboard"),
         )
+    }
+
+    @Test
+    fun paymentQrPreviewUsesThePayeeDecodedFromTheCode() {
+        val image = ImageRecord(
+            id = "a", name = "Screenshot.png", folder = "", relativePath = "", width = 1, height = 1, dateMillis = 0,
+            category = ImageCategory.QR,
+            subCategory = PaymentQrParser.SUB_CATEGORY,
+            ocrText = "Scan to Pay\nMerchant: Blurry Standee Text\nWe Accept",
+            title = "HIMALAYAN PHARMA",
+        )
+        assertEquals("HIMALAYAN PHARMA", ScreenshotContentSummarizer.previewText(image))
     }
 }

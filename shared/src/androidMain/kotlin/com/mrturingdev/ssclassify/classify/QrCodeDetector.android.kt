@@ -38,6 +38,10 @@ object QrCodeDetector {
 
     private fun Barcode.toQrResult(): QrResult {
         val raw = rawValue ?: displayValue ?: ""
+        // Payment codes first: the decoded payload names the payee and network reliably.
+        PaymentQrParser.parse(raw)?.let { payment ->
+            return QrResult(subLabel = PaymentQrParser.SUB_CATEGORY, description = payment.description, detail = raw, title = payment.payee)
+        }
         return when (valueType) {
             Barcode.TYPE_URL -> {
                 val host = url?.url?.let { extractHost(it) } ?: raw
@@ -88,16 +92,11 @@ object QrCodeDetector {
 
     /**
      * Heuristically identifies payment / app QR codes from raw text patterns.
-     * Examples: UPI deep links, PayPal, Venmo, Cash App, Google Pay, PhonePe.
+     * Examples: PayPal, Venmo, Cash App, Google Pay, PhonePe (UPI links go through [PaymentQrParser]).
      */
     private fun detectPaymentOrAppQr(raw: String): String? {
         val lower = raw.lowercase()
         return when {
-            lower.startsWith("upi://") || lower.contains("pa=") && lower.contains("upi") -> {
-                val payee = Regex("pn=([^&]+)").find(raw)?.groupValues?.get(1)
-                    ?: Regex("pa=([^&]+)").find(raw)?.groupValues?.get(1)
-                if (payee != null) "UPI Payment QR for $payee" else "UPI Payment QR"
-            }
             lower.contains("paypal.com") -> "PayPal Payment QR"
             lower.contains("venmo.com") || lower.startsWith("venmo://") -> "Venmo Payment QR"
             lower.contains("cash.app") || lower.startsWith("cashapp://") -> "Cash App Payment QR"
@@ -132,4 +131,6 @@ data class QrResult(
     val subLabel: String,
     val description: String,
     val detail: String,
+    /** The payee of a payment QR, used as the screenshot's title. */
+    val title: String? = null,
 )

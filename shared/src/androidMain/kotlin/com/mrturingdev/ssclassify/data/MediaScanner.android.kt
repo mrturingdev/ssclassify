@@ -203,7 +203,7 @@ actual class MediaScanner actual constructor() : ScreenshotSource {
                     rawText = text.raw,
                     filteredText = text.filtered,
                     detailText = text.detail,
-                    title = text.title,
+                    title = qrResult.title ?: text.title,
                     subCategory = qrResult.subLabel,
                     ocrFailed = ocrFailed,
                     objectSource = ObjectSource.Ocr,
@@ -350,7 +350,7 @@ private fun loadBitmap(context: Context, mediaUri: Uri): Bitmap? {
  * [OcrTextProcessor.process] receives, so calibration tests can replay them
  * without a device. Blocking; null when the image cannot be read.
  */
-fun ocrLinesJson(context: Context, id: String): String? {
+suspend fun ocrLinesJson(context: Context, id: String): String? {
     val bitmap = loadBitmap(context, Uri.parse(id)) ?: return null
     val ocr = OcrHelper()
     val lines = try {
@@ -369,7 +369,9 @@ fun ocrLinesJson(context: Context, id: String): String? {
                 .put("bottom", line.bottom.toDouble()),
         )
     }
-    return org.json.JSONObject().put("lines", array).toString(2)
+    // The decoded QR payload too, so payment-QR parsing can be checked against real codes.
+    val qr = QrCodeDetector.detect(bitmap)?.detail
+    return org.json.JSONObject().put("lines", array).put("qr", qr ?: org.json.JSONObject.NULL).toString(2)
 }
 
 fun hasPhotoAccess(context: Context): Boolean {

@@ -171,8 +171,10 @@ object ScreenshotContentSummarizer {
         previewText(
             ocrText = image.ocrText.ifBlank { image.rawOcrText },
             fallbackDescription = image.description,
-            isQr = image.category == ImageCategory.QR ||
-                image.subCategory?.contains("qr", ignoreCase = true) == true,
+            // A payment QR's title is the payee decoded from the code itself, which beats any
+            // company name guessed from the text around it.
+            isQr = image.subCategory != PaymentQrParser.SUB_CATEGORY &&
+                (image.category == ImageCategory.QR || image.subCategory?.contains("qr", ignoreCase = true) == true),
             title = image.title,
         )
 

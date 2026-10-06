@@ -9,6 +9,7 @@ import android.content.pm.PackageManager
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
+import android.util.Log
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
@@ -115,7 +116,7 @@ class MainActivity : ComponentActivity() {
         }
     }
 
-    private fun saveOcrLines(id: String): String? {
+    private suspend fun saveOcrLines(id: String): String? {
         val json = ocrLinesJson(this, id) ?: return null
         File(filesDir, "ocr-lines").apply { mkdirs() }.resolve("${Uri.parse(id).lastPathSegment}.json").writeText(json)
         return json
@@ -128,7 +129,12 @@ class MainActivity : ComponentActivity() {
     private fun exportRequestedOcrLines(intent: Intent?) {
         if (!isDebuggable()) return
         val ids = intent?.getStringExtra(EXTRA_EXPORT_OCR_IDS)?.split(',')?.filter { it.isNotBlank() } ?: return
-        lifecycleScope.launch(Dispatchers.Default) { ids.forEach(::saveOcrLines) }
+        lifecycleScope.launch(Dispatchers.Default) {
+            for (id in ids) {
+                // One unreadable screenshot must not stop the rest (or crash the app).
+                runCatching { saveOcrLines(id) }.onFailure { Log.w("OcrExport", "skipped $id", it) }
+            }
+        }
     }
 
     private fun hasPhotoPermission(): Boolean =
