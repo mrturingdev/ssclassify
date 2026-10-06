@@ -6,7 +6,8 @@
 	<false/>
 	<!-- Screenshots and their text are analyzed on-device and never leave it.
 	     What is sent, to Sentry (EU region), is crash reports (on by default,
-	     can be turned off in Settings) and opt-in quality stats made only of
+	     can be turned off in Settings) and quality stats (on by default, can be
+	     turned off) made only of
 	     counts, buckets and category names. See store-listing/privacy-policy.html. -->
 	<key>NSPrivacyCollectedDataTypes</key>
 	<array>
@@ -23,7 +24,7 @@
 				<string>NSPrivacyCollectedDataTypePurposeAppFunctionality</string>
 			</array>
 		</dict>
-		<!-- Opt-in: bucketed scan duration and on-device model availability. -->
+		<!-- Quality stats: bucketed scan duration and on-device model availability. -->
 		<dict>
 			<key>NSPrivacyCollectedDataType</key>
 			<string>NSPrivacyCollectedDataTypePerformanceData</string>
@@ -36,7 +37,7 @@
 				<string>NSPrivacyCollectedDataTypePurposeAnalytics</string>
 			</array>
 		</dict>
-		<!-- Opt-in: bucketed OCR failure and untitled counts. -->
+		<!-- Quality stats: bucketed OCR failure and untitled counts. -->
 		<dict>
 			<key>NSPrivacyCollectedDataType</key>
 			<string>NSPrivacyCollectedDataTypeOtherDiagnosticData</string>
@@ -49,7 +50,7 @@
 				<string>NSPrivacyCollectedDataTypePurposeAnalytics</string>
 			</array>
 		</dict>
-		<!-- Opt-in: category corrections (from/to category) and Re-analyze all use. -->
+		<!-- Quality stats: category corrections (from/to category) and Re-analyze all use. -->
 		<dict>
 			<key>NSPrivacyCollectedDataType</key>
 			<string>NSPrivacyCollectedDataTypeProductInteraction</string>

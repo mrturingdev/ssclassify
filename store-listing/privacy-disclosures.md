@@ -31,9 +31,9 @@ Sentry debug logging on 2026-10-06).
 | Play data type | Collected | Optional for the user | Purposes | Source |
 |---|---|---|---|---|
 | App info and performance > Crash logs | Yes | Yes (Settings toggle) | App functionality, Analytics | Sentry crash reports |
-| App info and performance > Diagnostics | Yes | No | Analytics | ML Kit performance metrics (always), Sentry OCR-failure counts (opt-in) |
-| App info and performance > Other app performance data | Yes | Yes | Analytics | Opt-in scan duration, AICore availability |
-| App activity > App interactions | Yes | Yes | Analytics | Opt-in category corrections, Re-analyze all use |
+| App info and performance > Diagnostics | Yes | No | Analytics | ML Kit performance metrics (always), Sentry OCR-failure counts (on by default, can be turned off) |
+| App info and performance > Other app performance data | Yes | Yes | Analytics | Scan duration, AICore availability (on by default, can be turned off) |
+| App activity > App interactions | Yes | Yes | Analytics | Category corrections, Re-analyze all use (on by default, can be turned off) |
 | Device or other IDs | Yes | No | App functionality, Analytics | ML Kit per-installation ID (always), Sentry random install ID on crash reports |
 
 Not collected: location, personal info, financial info, health, messages,
