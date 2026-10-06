@@ -60,6 +60,6 @@ class OcrFixturesTest {
     }
 
     private companion object {
-        const val MIN_TITLE_HITS = 13
+        const val MIN_TITLE_HITS = 14
     }
 }

@@ -82,7 +82,8 @@ object OcrTextProcessor {
     const val TITLE_SIZE_TOLERANCE = 0.05f
 
     /** One reading-order row: [level] 1 = title, 2 = emphasized, 3 = body; [ring] 0 = middle of the screen. */
-    private class Row(val text: String, val size: Float, val ring: Int, var level: Int = 3)
+    /** [iconLed]: the row's text line starts with a glyph OCR misread as a stray character (a button or list icon). */
+    private class Row(val text: String, val size: Float, val ring: Int, val iconLed: Boolean = false, var level: Int = 3)
 
     /** Clock, battery and signal tokens that status bars put into OCR. */
     internal val statusNoise = Regex(
@@ -99,8 +100,10 @@ object OcrTextProcessor {
         // icon or like counter beside the text ("3,234", a lone glyph) can't inflate the row.
         val rows = readingOrderRows(focused)
             .map { row ->
-                val size = row.maxBy { line -> line.text.count { it.isLetter() } }.height
-                Row(cleanLine(row.joinToString(" ") { it.text }), size, ring(row.first().centerY))
+                val wordiest = row.maxBy { line -> line.text.count { it.isLetter() } }
+                // An icon read as a stray character ("L Split payment") also makes the line box taller.
+                val iconLed = wordiest.text.trim().split(' ').first().let { it.isNotEmpty() && !isMeaningful(it) }
+                Row(cleanLine(row.joinToString(" ") { it.text }), wordiest.height, ring(row.first().centerY), iconLed)
             }
             .filter { it.text.isNotEmpty() }
         val filtered = rows.joinToString("\n") { it.text }
@@ -135,7 +138,8 @@ object OcrTextProcessor {
      * Calibrated against the OcrFixturesTest screenshots.
      */
     private fun pickTitle(rows: List<Row>): String? {
-        val candidates = rows.filter { isSolidTitle(it.text) && isWordy(it.text) }
+        // Icon-led rows are actions and list items ("Split payment with friends"), not titles.
+        val candidates = rows.filter { !it.iconLed && isSolidTitle(it.text) && isWordy(it.text) }
         val (inner, outer) = candidates.partition { it.ring < FOCUS_RINGS.size }
         return sequenceOf(inner, outer).firstNotNullOfOrNull { pool ->
             (1..2).firstNotNullOfOrNull { level ->
