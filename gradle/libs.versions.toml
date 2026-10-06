@@ -11,9 +11,12 @@ android-compileSdk = "36"
 android-minSdk = "24"
 android-targetSdk = "36"
 aicore = "0.0.1-exp01"
+sentry = "8.59.0"
 benchmark = "1.5.0"
 
 [libraries]
+# Core only: no NDK handler, and no session replay, which records the screen.
+sentry-android-core = { module = "io.sentry:sentry-android-core", version.ref = "sentry" }
 google-ai-edge-aicore = { module = "com.google.ai.edge.aicore:aicore", version.ref = "aicore" }
 kotlinx-coroutines-android = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-android", version.ref = "coroutines" }
 kotlinx-coroutines-test = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-test", version.ref = "coroutines" }

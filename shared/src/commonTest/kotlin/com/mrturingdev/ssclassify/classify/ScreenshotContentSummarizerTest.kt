@@ -149,4 +149,47 @@ class ScreenshotContentSummarizerTest {
         val preview = ScreenshotContentSummarizer.previewText(ocrText = ocr, isQr = true)
         assertTrue(preview.contains("Quick Payment System"))
     }
+
+    @Test
+    fun previewLeadsWithStoredTitleAndAmount() {
+        val ocr = "Inbox\nOrder confirmed\nTotal 42.00\nShips in 2 days"
+        assertEquals("Order confirmed • Total 42.00", ScreenshotContentSummarizer.previewText(ocr, title = "Order confirmed"))
+        assertEquals("Shipping update", ScreenshotContentSummarizer.previewText("Ships in 2 days", title = "Shipping update"))
+    }
+
+    @Test
+    fun qrCompanyNameBeatsStoredTitle() {
+        val ocr = "Scan & Pay\nPayee: Everest Bakery"
+        assertEquals("Everest Bakery", ScreenshotContentSummarizer.previewText(ocr, isQr = true, title = "Scan & Pay"))
+    }
+
+    @Test
+    fun highlightKeywordsMustBeWholeWordsAndIdsNeedADigit() {
+        val ocr = "MEET UTOPAI X.\nElo scores from blind preference votes in our Video Arena.\n5K paying users 300 a day"
+        assertEquals(emptyList(), ScreenshotContentSummarizer.extractHighlights(ocr))
+        assertEquals(
+            listOf("Reference" to "Order #ORD-10001"),
+            ScreenshotContentSummarizer.extractHighlights("Payment successful\nOrder #ORD-10001"),
+        )
+    }
+
+    @Test
+    fun amountsKeepTheirThousandsAndLakhGrouping() {
+        assertEquals(
+            "Payment successful • Rs. 1,250.00",
+            ScreenshotContentSummarizer.previewText("Payment successful\nAmount Rs. 1,250.00", title = "Payment successful"),
+        )
+        assertEquals(
+            listOf("Amount" to "NPR 1,25,000.00"),
+            ScreenshotContentSummarizer.extractHighlights("Loan statement\nTotal NPR 1,25,000.00"),
+        )
+    }
+
+    @Test
+    fun abbreviatedFiguresAreNotAmounts() {
+        assertEquals(
+            "3. Build a life dashboard",
+            ScreenshotContentSummarizer.previewText("3. Build a life dashboard\nRevenue $1.2M\n25K", title = "3. Build a life dashboard"),
+        )
+    }
 }

@@ -120,6 +120,7 @@ import com.mrturingdev.ssclassify.data.ScanOutcome
 import com.mrturingdev.ssclassify.data.ThumbnailLoader
 import com.mrturingdev.ssclassify.model.CategorySource
 import com.mrturingdev.ssclassify.model.ImageCategory
+import com.mrturingdev.ssclassify.telemetry.PrivacyPrompt
 import com.mrturingdev.ssclassify.model.ImageRecord
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -140,6 +141,11 @@ fun HomeScreen(
     /** A screenshot to open in the detail page, e.g. from a widget tap; null when none. */
     openDetailId: String? = null,
     onDetailOpened: () -> Unit = {},
+    /** Debug builds only: exports a screenshot's OCR lines as fixture JSON; null hides the action. */
+    onExportOcrLines: ((id: String) -> Unit)? = null,
+    /** The one-time telemetry card, or null when there is nothing to ask. */
+    privacyPrompt: PrivacyPrompt? = null,
+    onPrivacyAnswer: (shareQualityStats: Boolean) -> Unit = {},
 ) {
     var selected by rememberSaveable { mutableStateOf(ALL_KEY) }
     var selectedSubCategory by rememberSaveable { mutableStateOf<String?>(null) }
@@ -184,6 +190,7 @@ fun HomeScreen(
             thumbnailLoader = thumbnailLoader,
             onBack = { activeDetailId = null },
             onOpenFullscreen = { fullscreenImageId = activeDetailImage.id },
+            onExportOcrLines = onExportOcrLines?.let { export -> { export(activeDetailImage.id) } },
             onCategoryChange = { onCategoryChange(activeDetailImage.id, it) },
             onDelete = {
                 onDeleteScreenshots(listOf(activeDetailImage.id))
@@ -262,6 +269,9 @@ fun HomeScreen(
                             query = query,
                             onQueryChange = onQueryChange,
                             images = searchResults ?: outcome.images,
+                            // Not while searching: the card is about the library, not the results.
+                            privacyPrompt = privacyPrompt.takeUnless { searching },
+                            onPrivacyAnswer = onPrivacyAnswer,
                             emptyMessage = if (searching) {
                                 "No screenshots contain \u201C${query.trim()}\u201D."
                             } else {
@@ -442,6 +452,8 @@ private fun CategoryBrowser(
     query: String,
     onQueryChange: (String) -> Unit,
     images: List<ImageRecord>,
+    privacyPrompt: PrivacyPrompt?,
+    onPrivacyAnswer: (shareQualityStats: Boolean) -> Unit,
     emptyMessage: String,
     onRescan: (() -> Unit)?,
     thumbnailLoader: ThumbnailLoader,
@@ -507,6 +519,7 @@ private fun CategoryBrowser(
                 )
             },
             bottom = {
+                privacyPrompt?.let { PrivacyPromptCard(it, onPrivacyAnswer) }
                 if (isCleanupMode) {
                     if (cleanupImages.isNotEmpty()) {
                         CleanupBanner(total = cleanupImages.size, blankCount = blankCount, uncatCount = uncatCount)
@@ -614,12 +627,10 @@ private fun CategoryBrowser(
                 detailId = null
                 onNavigateToDetails(id)
             },
-            onDelete = if (isCleanupMode || currentRecords.any { it.isCleanUpCandidate }) {
-                { id ->
-                    detailId = null
-                    onDeleteScreenshots(listOf(id))
-                }
-            } else null,
+            onDelete = { id ->
+                detailId = null
+                onDeleteScreenshots(listOf(id))
+            },
         )
     }
 }
@@ -836,7 +847,8 @@ private fun ImageCard(
                 modifier = Modifier.fillMaxSize(),
             )
         }
-        val summary = remember(image.ocrText, image.rawOcrText, image.description, image.category, image.subCategory) {
+        val summary = remember(image) {
+            // Keyed on the whole record: the preview reads its title too, which re-analysis can change alone.
             ScreenshotContentSummarizer.previewText(image)
         }
         val hasSummary = summary.isNotBlank() && summary != "No text detected"
@@ -913,7 +925,7 @@ internal fun ImageDetailDialog(
     onCategoryChange: (id: String, ImageCategory?) -> Unit,
     onOpenFullscreen: (id: String) -> Unit,
     onNavigateToDetails: (id: String) -> Unit,
-    onDelete: ((id: String) -> Unit)? = null,
+    onDelete: (id: String) -> Unit,
 ) {
     if (images.isEmpty()) return
 
@@ -937,7 +949,7 @@ internal fun ImageDetailDialog(
                 Button(
                     onClick = {
                         showDeleteConfirm = false
-                        onDelete?.invoke(currentImage.id)
+                        onDelete(currentImage.id)
                     },
                     colors = ButtonDefaults.buttonColors(
                         containerColor = MaterialTheme.colorScheme.error,
@@ -1032,14 +1044,12 @@ internal fun ImageDetailDialog(
         },
         dismissButton = {
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                if (onDelete != null) {
-                    IconButton(onClick = { showDeleteConfirm = true }) {
-                        Icon(
-                            Icons.Rounded.Delete,
-                            contentDescription = "Delete screenshot",
-                            tint = MaterialTheme.colorScheme.error,
-                        )
-                    }
+                IconButton(onClick = { showDeleteConfirm = true }) {
+                    Icon(
+                        Icons.Rounded.Delete,
+                        contentDescription = "Delete screenshot",
+                        tint = MaterialTheme.colorScheme.error,
+                    )
                 }
                 Button(
                     onClick = onDismiss,
@@ -1130,7 +1140,8 @@ private fun ImageDetailContent(
         }
 
         // Summary card
-        val summary = remember(image.ocrText, image.rawOcrText, image.description, image.category, image.subCategory) {
+        val summary = remember(image) {
+            // Keyed on the whole record: the preview reads its title too, which re-analysis can change alone.
             ScreenshotContentSummarizer.previewText(image)
         }
         if (summary.isNotBlank() && summary != "No text detected") {

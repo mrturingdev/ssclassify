@@ -19,6 +19,11 @@ expect fun loadThemeMode(): ThemeMode
 
 expect fun saveThemeMode(mode: ThemeMode)
 
+/** Small persisted values (SharedPreferences / NSUserDefaults); null [value] removes the key. */
+expect fun loadString(key: String): String?
+
+expect fun saveString(key: String, value: String?)
+
 /**
  * Sends the user to the store to rate the app. Reviews land in Play Console /
  * App Store Connect. [writeReview] asks for a written review rather than a

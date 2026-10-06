@@ -25,13 +25,16 @@ data class OcrLine(
  *    widening outward, with headings marked as "# " (title) and "## "
  *    (emphasized) by font size and ALL CAPS;
  *  - [detail]: for reading. The filtered rows, but when the middle of the screen
- *    has a solid title the outer rows are secondary and move to the bottom.
+ *    has a solid title the outer rows are secondary and move to the bottom;
+ *  - [title]: the one row that best names the screen, or null when no row
+ *    stands out (see [OcrTextProcessor.pickTitle]).
  */
 data class OcrText(
     val raw: String,
     val filtered: String,
     val summary: String = filtered,
     val detail: String = filtered,
+    val title: String? = null,
 )
 
 /**
@@ -51,7 +54,7 @@ object OcrTextProcessor {
 
     /** Row text height over the median row height at which a row reads as a title / emphasized. Calibration knobs. */
     const val TITLE_RATIO = 1.6f
-    const val EMPHASIS_RATIO = 1.2f
+    const val EMPHASIS_RATIO = 1.1f
 
     /**
      * Focus rings as distances from the vertical middle: the middle 60% of the
@@ -62,6 +65,21 @@ object OcrTextProcessor {
 
     /** Fewest letters for an ALL CAPS row to count as a heading, so "OK" or "PM" don't. Calibration knob. */
     const val MIN_CAPS_LETTERS = 3
+
+    /** A solid title says something: at least this many words or characters, so big "DONE" or "PAY" buttons don't count. Calibration knobs. */
+    const val MIN_TITLE_WORDS = 2
+    const val MIN_TITLE_CHARS = 8
+
+    /** A title is mostly words: at least this many letters, making up at least this share of its visible characters. Calibration knobs. */
+    const val MIN_TITLE_LETTERS = 4
+    const val TITLE_LETTER_SHARE = 0.6f
+
+    /**
+     * Title candidates within this share of the largest height count as the same size. Measured: one
+     * screen's two rows differed 2.6% between OCR passes (jitter), while a real size step was 6%.
+     * Calibration knob.
+     */
+    const val TITLE_SIZE_TOLERANCE = 0.05f
 
     /** One reading-order row: [level] 1 = title, 2 = emphasized, 3 = body; [ring] 0 = middle of the screen. */
     private class Row(val text: String, val size: Float, val ring: Int, var level: Int = 3)
@@ -77,9 +95,13 @@ object OcrTextProcessor {
         val focused = lines.filter {
             it.centerX in focusMargin..(1f - focusMargin) && it.centerY in focusMargin..(1f - focusMargin)
         }
-        // Line box height is the font size: the row's tallest line sets its size.
+        // Line box height is the font size. The row's wordiest line sets it, so an
+        // icon or like counter beside the text ("3,234", a lone glyph) can't inflate the row.
         val rows = readingOrderRows(focused)
-            .map { row -> Row(cleanLine(row.joinToString(" ") { it.text }), row.maxOf { it.height }, ring(row.first().centerY)) }
+            .map { row ->
+                val size = row.maxBy { line -> line.text.count { it.isLetter() } }.height
+                Row(cleanLine(row.joinToString(" ") { it.text }), size, ring(row.first().centerY))
+            }
             .filter { it.text.isNotEmpty() }
         val filtered = rows.joinToString("\n") { it.text }
         if (rows.isEmpty()) return OcrText(raw, filtered)
@@ -94,14 +116,44 @@ object OcrTextProcessor {
             }
         }
         // Detail: a solid title in the middle makes the outer rows secondary, so they go to the bottom.
-        val hasMiddleTitle = rows.any { it.ring == 0 && it.level == 1 }
+        val hasMiddleTitle = rows.any { it.ring == 0 && it.level == 1 && isSolidTitle(it.text) }
         val detail = if (hasMiddleTitle) {
             val (middle, outer) = rows.partition { it.ring == 0 }
             (middle + outer).joinToString("\n") { it.text }
         } else {
             filtered
         }
-        return OcrText(raw, filtered, summary, detail)
+        return OcrText(raw, filtered, summary, detail, pickTitle(rows))
+    }
+
+    /**
+     * Solid, wordy title rows first, then emphasized ones; within a level the
+     * larger font wins, then reading order (app screens put their title at the
+     * top, so the middle does not get priority here). Rows in the outermost
+     * ring (banners, tab bars) only count when nothing inside does. Null when
+     * no row qualifies, so callers fall back to their own digest.
+     * Calibrated against the OcrFixturesTest screenshots.
+     */
+    private fun pickTitle(rows: List<Row>): String? {
+        val candidates = rows.filter { isSolidTitle(it.text) && isWordy(it.text) }
+        val (inner, outer) = candidates.partition { it.ring < FOCUS_RINGS.size }
+        return sequenceOf(inner, outer).firstNotNullOfOrNull { pool ->
+            (1..2).firstNotNullOfOrNull { level ->
+                val leveled = pool.filter { it.level == level }
+                val largest = leveled.maxOfOrNull { it.size } ?: return@firstNotNullOfOrNull null
+                // Near-equal sizes tie (OCR box heights jitter between passes). Among ties a phrase
+                // beats a one-word page label like "Settings", then the higher row wins.
+                leveled.filter { it.size >= largest * (1f - TITLE_SIZE_TOLERANCE) }
+                    .minWith(compareBy<Row> { if (it.text.trim().contains(' ')) 0 else 1 })
+            }
+        }?.text
+    }
+
+    /** Mostly letters: amounts, counters and codes ("NPR 2600.00", "59 4 3") are not titles. */
+    private fun isWordy(text: String): Boolean {
+        val letters = text.count { it.isLetter() }
+        val visible = text.count { !it.isWhitespace() }
+        return letters >= MIN_TITLE_LETTERS && letters >= visible * TITLE_LETTER_SHARE
     }
 
     /**
@@ -122,6 +174,9 @@ object OcrTextProcessor {
             row.level = if (isAllCaps(row.text)) maxOf(1, bySize - 1) else bySize
         }
     }
+
+    private fun isSolidTitle(text: String): Boolean =
+        text.split(' ').count { it.isNotBlank() } >= MIN_TITLE_WORDS || text.length >= MIN_TITLE_CHARS
 
     /** Scripts without case (Devanagari, CJK) never count as caps. */
     private fun isAllCaps(text: String): Boolean {

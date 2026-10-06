@@ -22,6 +22,7 @@ kotlin {
             implementation(libs.androidx.activity.compose)
             implementation(libs.compose.foundation)
             implementation(libs.compose.ui)
+            implementation(libs.sentry.android.core)
         }
         androidUnitTest.dependencies {
             implementation(libs.compose.runtime)
@@ -58,6 +59,10 @@ android {
                 keyPassword = signingProps.getProperty("SS_KEY_PASSWORD")
             }
         }
+    }
+    // BuildConfig.BUILD_TYPE limits telemetry to release builds (not debug or benchmark).
+    buildFeatures {
+        buildConfig = true
     }
     buildTypes {
         release {

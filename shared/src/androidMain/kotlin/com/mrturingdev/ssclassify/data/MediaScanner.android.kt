@@ -27,6 +27,7 @@ import com.mrturingdev.ssclassify.classify.QrCodeDetector
 import com.mrturingdev.ssclassify.classify.ScreenshotCategorizer
 import com.mrturingdev.ssclassify.classify.TensorFlowVisionHelper
 import com.mrturingdev.ssclassify.db.ScreenshotDatabase
+import com.mrturingdev.ssclassify.telemetry.AiCoreState
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
@@ -146,6 +147,9 @@ actual class MediaScanner actual constructor() : ScreenshotSource {
         return assets
     }
 
+    private var lastAiCoreState = AiCoreState.NotOnPlatform
+    override val aiCoreState: AiCoreState get() = lastAiCoreState
+
     override suspend fun analyze(
         assets: List<ScreenshotAsset>,
         onResult: (ScreenshotAsset, ScreenshotAnalysis) -> Unit,
@@ -159,6 +163,7 @@ actual class MediaScanner actual constructor() : ScreenshotSource {
             for (asset in assets) {
                 onResult(asset, analyzeOne(context, Uri.parse(asset.id), asset.name, tfHelper, ocrHelper, meaningProvider))
             }
+            lastAiCoreState = meaningProvider.aiCoreState
         } finally {
             tfHelper.close()
             ocrHelper.close()
@@ -183,10 +188,12 @@ actual class MediaScanner actual constructor() : ScreenshotSource {
             loadBitmap(context, mediaUri)
         } catch (e: Exception) {
             null
-        } ?: return ScreenshotAnalysis("")
+        } ?: return ScreenshotAnalysis("", ocrFailed = true)
 
         try {
-            val lines = ocrHelper.recognizeLines(bitmap)
+            val recognized = ocrHelper.recognizeLines(bitmap)
+            val ocrFailed = recognized == null
+            val lines = recognized.orEmpty()
             val text = OcrTextProcessor.process(lines)
 
             // --- QR Code detection (runs first; if found we skip other classifiers) ---
@@ -196,7 +203,9 @@ actual class MediaScanner actual constructor() : ScreenshotSource {
                     rawText = text.raw,
                     filteredText = text.filtered,
                     detailText = text.detail,
+                    title = text.title,
                     subCategory = qrResult.subLabel,
+                    ocrFailed = ocrFailed,
                     objectSource = ObjectSource.Ocr,
                     description = qrResult.description,
                 )
@@ -249,12 +258,14 @@ actual class MediaScanner actual constructor() : ScreenshotSource {
                 rawText = text.raw,
                 filteredText = text.filtered,
                 detailText = text.detail,
+                title = meaning.headline.takeIf { meaning.fromAiCore && it.isNotBlank() } ?: text.title,
                 subCategory = resolvedSubCategory,
                 objectSource = finalDetected?.source ?: if (meaning.subCategory != null) ObjectSource.Ocr else null,
                 description = finalDescription,
+                ocrFailed = ocrFailed,
             )
         } catch (e: Exception) {
-            return ScreenshotAnalysis("") // a failed model run must not abort the whole scan
+            return ScreenshotAnalysis("", ocrFailed = true) // a failed model run must not abort the whole scan
         } finally {
             bitmap.recycle()
         }
@@ -311,26 +322,54 @@ actual class MediaScanner actual constructor() : ScreenshotSource {
         return parts.joinToString(" ").ifEmpty { null }
     }
 
-    /**
-     * Decodes close to full resolution for OCR: screenshot text needs its real
-     * pixel height (a 512 px thumbnail shrinks a 1080x2340 screen to 236 px wide).
-     * Downsamples by powers of two only above [OCR_MAX_SIDE].
-     */
-    private fun loadBitmap(context: Context, mediaUri: Uri): Bitmap? {
-        val resolver = context.contentResolver
-        val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
-        resolver.openInputStream(mediaUri)?.use { BitmapFactory.decodeStream(it, null, bounds) }
-        if (bounds.outWidth <= 0 || bounds.outHeight <= 0) return null
-        var sample = 1
-        while (maxOf(bounds.outWidth, bounds.outHeight) / (sample * 2) >= OCR_MAX_SIDE) sample *= 2
-        val options = BitmapFactory.Options().apply { inSampleSize = sample }
-        return resolver.openInputStream(mediaUri)?.use { BitmapFactory.decodeStream(it, null, options) }
-    }
-
     private companion object {
-        const val OCR_MAX_SIDE = 2048
         const val BLANK_ROW_TOLERANCE = 24
     }
+}
+
+private const val OCR_MAX_SIDE = 2048
+
+/**
+ * Decodes close to full resolution for OCR: screenshot text needs its real
+ * pixel height (a 512 px thumbnail shrinks a 1080x2340 screen to 236 px wide).
+ * Downsamples by powers of two only above [OCR_MAX_SIDE].
+ */
+private fun loadBitmap(context: Context, mediaUri: Uri): Bitmap? {
+    val resolver = context.contentResolver
+    val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
+    resolver.openInputStream(mediaUri)?.use { BitmapFactory.decodeStream(it, null, bounds) }
+    if (bounds.outWidth <= 0 || bounds.outHeight <= 0) return null
+    var sample = 1
+    while (maxOf(bounds.outWidth, bounds.outHeight) / (sample * 2) >= OCR_MAX_SIDE) sample *= 2
+    val options = BitmapFactory.Options().apply { inSampleSize = sample }
+    return resolver.openInputStream(mediaUri)?.use { BitmapFactory.decodeStream(it, null, options) }
+}
+
+/**
+ * Debug fixture export: one screenshot's OCR lines as JSON, exactly what
+ * [OcrTextProcessor.process] receives, so calibration tests can replay them
+ * without a device. Blocking; null when the image cannot be read.
+ */
+fun ocrLinesJson(context: Context, id: String): String? {
+    val bitmap = loadBitmap(context, Uri.parse(id)) ?: return null
+    val ocr = OcrHelper()
+    val lines = try {
+        ocr.recognizeLines(bitmap).orEmpty()
+    } finally {
+        ocr.close()
+    }
+    val array = org.json.JSONArray()
+    for (line in lines) {
+        array.put(
+            org.json.JSONObject()
+                .put("text", line.text)
+                .put("left", line.left.toDouble())
+                .put("top", line.top.toDouble())
+                .put("right", line.right.toDouble())
+                .put("bottom", line.bottom.toDouble()),
+        )
+    }
+    return org.json.JSONObject().put("lines", array).toString(2)
 }
 
 fun hasPhotoAccess(context: Context): Boolean {

@@ -1,0 +1,31 @@
+# Scrubbed ML Kit OCR lines: left top right bottom text (normalized, top-left origin).
+# title: *
+0.049 0.021 0.169 0.033 14:38 >
+0.080 0.072 0.124 0.081 sms
+0.204 0.075 0.413 0.090 SMS Mode
+0.227 0.192 0.863 0.207 It seems, that you are not connected
+0.225 0.212 0.878 0.225 to the internet. Please connect to the
+0.227 0.232 0.908 0.248 internet and swipe down to refresh the
+0.224 0.254 0.343 0.265 SCreen.
+0.152 0.337 0.258 0.346 GOVERNMENT OF NEPAL
+0.130 0.343 0.284 0.354 NATIONAL IDENTITY CARD
+0.125 0.530 0.222 0.545 Topup
+0.070 0.440 0.386 0.460 Utility Payments
+0.092 0.615 0.259 0.626 School Fee
+0.071 0.715 0.307 0.733 My Account
+0.115 0.808 0.236 0.820 Balance
+0.118 0.825 0.233 0.841 Enquiry
+0.418 0.286 0.897 0.299 CONNECT TO INTERNET
+0.385 0.351 0.581 0.367 Update Your
+0.386 0.366 0.826 0.384 National ldentity Card (NID)
+0.311 0.529 0.885 0.545 Khanepani Credit Card Internet
+0.367 0.616 0.419 0.626 EMI
+0.361 0.809 0.423 0.820 Mini
+0.314 0.827 0.471 0.837 Statement
+0.582 0.616 0.634 0.626 SIM
+0.531 0.633 0.686 0.644 Activation
+0.564 0.808 0.654 0.820 Check
+0.553 0.826 0.666 0.837 Reward
+0.194 0.905 0.639 0.923 Emergency Account Lock
+0.732 0.613 0.918 0.628 Send Money
+0.295 0.945 0.904 0.962 Activate Offline Payment Dns.

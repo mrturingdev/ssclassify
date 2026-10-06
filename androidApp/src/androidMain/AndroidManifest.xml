@@ -11,6 +11,11 @@
         android:name="android.permission.READ_EXTERNAL_STORAGE"
         android:maxSdkVersion="32" />
 
+    <!-- tensorflow-lite-task-core ships a manifest without targetSdkVersion, so the
+         merger implies these legacy permissions. TFLite never uses them. -->
+    <uses-permission android:name="android.permission.READ_PHONE_STATE" tools:node="remove" />
+    <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" tools:node="remove" />
+
     <application
         android:allowBackup="true"
         android:extractNativeLibs="false"
@@ -20,6 +25,8 @@
         android:supportsRtl="true"
         android:theme="@android:style/Theme.Material.Light.NoActionBar">
 
+        <!-- Sentry starts from code, and only with the user's consent (see SentryTelemetrySink). -->
+        <meta-data android:name="io.sentry.auto-init" android:value="false" />
         <!-- Lets :classyBenchmark trace frame timing on a non-debuggable build. -->
         <profileable android:shell="true" tools:targetApi="29" />
 

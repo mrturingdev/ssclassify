@@ -1,0 +1,48 @@
+# Scrubbed ML Kit OCR lines: left top right bottom text (normalized, top-left origin).
+# title: *
+0.046 0.020 0.169 0.034 12:53 >
+0.105 0.043 0.131 0.047 None
+0.027 0.099 0.106 0.104 () Variables
+0.110 0.058 0.150 0.060 Advanced
+0.104 0.132 0.135 0.141 59
+0.136 0.073 0.240 0.078 unsloth/LaTeX_0CR
+0.135 0.080 0.264 0.083 Huggng Face Dataset /oufaut / trai
+0.156 0.100 0.207 0.105 Terminal
+0.172 0.124 0.228 0.149 Q
+0.243 0.132 0.257 0.141 4
+0.031 0.243 0.343 0.256 The process is simple:
+0.032 0.317 0.309 0.331 3 Hit start training
+0.317 0.076 0.333 0.079 Clea
+0.031 0.357 0.269 0.370 And you're done!
+0.065 0.625 0.091 0.629 fhmand
+0.031 0.558 0.117 0.569 20 May
+0.373 0.132 0.387 0.140 3
+0.078 0.278 0.594 0.293 Open the Unsloth AI Colab notebook
+0.079 0.300 0.478 0.313 Pick your model and dataset
+0.417 0.051 0.448 0.055 0.0002
+0.419 0.073 0.475 0.077 LoRA Settings
+0.419 0.084 0.525 0.087 Training Hyperparameters
+0.032 0.396 0.563 0.406 Colab notebook link in the comments!
+0.031 0.166 0.894 0.179 dailydoseofds_ Fine-tune Google Gemma 4 completely FREE!
+0.048 0.202 0.866 0.217 All you need is a browser and 500+ models to choose from.
+0.032 0.472 0.480 0.486 #finetuning #gemma #llms less
+0.546 0.063 0.588 0.066 ut fne-tune
+0.146 0.599 0.316 0.610 kasthakalaa
+0.145 0.620 0.176 0.628 Ad
+0.031 0.496 0.548 0.510 dailydoseofds_ Here's the notebook:
+0.032 0.534 0.699 0.548 /blob/main/studio/Unsloth_Studio_Colab.ipynb
+0.274 0.945 0.319 0.967 D)
+0.750 0.020 0.931 0.035 .l 20)
+0.712 0.065 0.817 0.068 Select a base model first.
+0.078 0.434 0.828 0.447 Over to you: What would you fine-tune Gemma 4 for?
+0.712 0.076 0.774 0.080 Training Config
+0.731 0.089 0.776 0.093 3Upload
+0.821 0.049 0.881 0.055 Sort Training
+0.033 0.515 0.888 0.529 https://colab.research.google.com/githublunslothai/unsloth
+0.824 0.089 0.860 0.093 e Save
+0.764 0.097 0.831 0.105 O 6-27 AM
+0.755 0.608 0.846 0.619 Follow
+0.889 0.097 0.965 0.105 14(Python 3)
+0.592 0.902 0.869 0.926 NPR 3000
+0.893 0.670 0.935 0.680 1/10
+0.938 0.494 0.958 0.501 3

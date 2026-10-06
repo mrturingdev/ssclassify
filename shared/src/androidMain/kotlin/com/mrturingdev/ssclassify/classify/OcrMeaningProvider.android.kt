@@ -3,7 +3,10 @@ package com.mrturingdev.ssclassify.classify
 import com.mrturingdev.ssclassify.aicore.OcrMeaningExtractorFactory
 import com.mrturingdev.ssclassify.aicore.extractor.OcrMeaningExtractor
 import com.mrturingdev.ssclassify.aicore.model.EntityType
+import com.mrturingdev.ssclassify.aicore.model.InferenceSource
+import com.mrturingdev.ssclassify.aicore.status.AiCoreStatus
 import com.mrturingdev.ssclassify.data.AndroidApp
+import com.mrturingdev.ssclassify.telemetry.AiCoreState
 
 /**
  * Android implementation of [OcrMeaningProvider], binding directly to the `:aicore` module.
@@ -30,6 +33,15 @@ actual class OcrMeaningProvider actual constructor() {
             OcrMeaningExtractorFactory.createRuleBasedOnly()
         }
     }
+
+    actual val aiCoreState: AiCoreState
+        get() = when (extractor.status.value) {
+            AiCoreStatus.Ready -> AiCoreState.Ready
+            is AiCoreStatus.Downloading -> AiCoreState.Downloading
+            is AiCoreStatus.Unsupported -> AiCoreState.Unsupported
+            is AiCoreStatus.Error -> AiCoreState.Error
+            else -> AiCoreState.Unavailable
+        }
 
     actual suspend fun extractMeaning(
         rawOcrText: String,
@@ -64,6 +76,7 @@ actual class OcrMeaningProvider actual constructor() {
             subCategory = subCategory,
             highlights = highlights,
             isSensitive = result.isSensitive,
+            fromAiCore = result.source == InferenceSource.AICORE_GEMINI_NANO,
         )
     }
 }

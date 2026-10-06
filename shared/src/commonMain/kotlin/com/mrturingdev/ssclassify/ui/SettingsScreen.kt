@@ -16,6 +16,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
 import androidx.compose.material.icons.rounded.Star
 import androidx.compose.material.icons.rounded.StarOutline
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -28,11 +29,18 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SegmentedButton
 import androidx.compose.material3.SegmentedButtonDefaults
 import androidx.compose.material3.SingleChoiceSegmentedButtonRow
+import androidx.compose.material3.Switch
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
+import com.mrturingdev.ssclassify.telemetry.TelemetryConsent
+import androidx.compose.ui.semantics.Role
+import androidx.compose.foundation.selection.toggleable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -55,6 +63,11 @@ fun SettingsScreen(
     onThemeModeChange: (ThemeMode) -> Unit,
     /** Asks the launcher to pin the widget; null when it cannot, so manual steps show instead. */
     pinWidget: (() -> Unit)?,
+    /** How many screenshots are analyzed; the re-analyze button is off when there are none. */
+    libraryCount: Int,
+    onReanalyzeAll: () -> Unit,
+    consent: TelemetryConsent,
+    onConsentChange: (TelemetryConsent) -> Unit,
     onBack: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -107,6 +120,8 @@ fun SettingsScreen(
         ) {
             ThemeSection(themeMode, onThemeModeChange)
             WidgetSection(pinWidget)
+            LibrarySection(libraryCount, onReanalyzeAll)
+            PrivacySection(consent, onConsentChange)
             RatingSection()
         }
     }
@@ -167,6 +182,92 @@ private fun WidgetSection(pinWidget: (() -> Unit)?) {
                 }
             }
         }
+    }
+}
+
+@Composable
+private fun LibrarySection(libraryCount: Int, onReanalyzeAll: () -> Unit) {
+    var confirming by rememberSaveable { mutableStateOf(false) }
+    SettingsCard("Library") {
+        Text(
+            "Read every screenshot again with the latest text recognition, titles and categories.",
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        OutlinedButton(
+            onClick = { confirming = true },
+            enabled = libraryCount > 0,
+            shape = RoundedCornerShape(20.dp),
+        ) {
+            Text("Re-analyze all")
+        }
+    }
+    if (confirming) {
+        val noun = if (libraryCount == 1) "screenshot" else "screenshots"
+        AlertDialog(
+            onDismissRequest = { confirming = false },
+            title = { Text("Re-analyze $libraryCount $noun?") },
+            text = {
+                Text(
+                    "This re-runs text recognition on every screenshot and may take a few minutes. " +
+                        "Your category corrections are kept.",
+                )
+            },
+            confirmButton = {
+                TextButton(onClick = {
+                    confirming = false
+                    onReanalyzeAll()
+                }) { Text("Re-analyze") }
+            },
+            dismissButton = {
+                TextButton(onClick = { confirming = false }) { Text("Cancel") }
+            },
+        )
+    }
+}
+
+@Composable
+private fun PrivacySection(consent: TelemetryConsent, onConsentChange: (TelemetryConsent) -> Unit) {
+    SettingsCard("Privacy") {
+        Text(
+            "S.S. Classify never sends your screenshots or the text in them.",
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        ToggleRow(
+            title = "Send crash reports",
+            description = "Anonymous error details when the app crashes.",
+            checked = consent.crashReports,
+            onCheckedChange = { onConsentChange(consent.copy(crashReports = it)) },
+        )
+        ToggleRow(
+            title = "Share anonymous quality stats",
+            description = "Counts like scan time and category corrections, to improve categorization.",
+            checked = consent.qualityStats,
+            onCheckedChange = { onConsentChange(consent.copy(qualityStats = it)) },
+        )
+    }
+}
+
+/** The whole row toggles, so the target is large and reads as one switch to screen readers. */
+@Composable
+private fun ToggleRow(title: String, description: String, checked: Boolean, onCheckedChange: (Boolean) -> Unit) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .toggleable(value = checked, role = Role.Switch, onValueChange = onCheckedChange),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
+    ) {
+        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+            Text(title, style = MaterialTheme.typography.bodyLarge)
+            Text(
+                description,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+        Switch(checked = checked, onCheckedChange = null)
     }
 }
 

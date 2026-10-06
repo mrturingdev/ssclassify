@@ -28,12 +28,21 @@ import com.mrturingdev.ssclassify.settings.ApplySystemTheme
 import com.mrturingdev.ssclassify.settings.ThemeMode
 import com.mrturingdev.ssclassify.settings.loadThemeMode
 import com.mrturingdev.ssclassify.settings.saveThemeMode
+import com.mrturingdev.ssclassify.telemetry.CountBucket
+import com.mrturingdev.ssclassify.telemetry.DurationBucket
+import com.mrturingdev.ssclassify.telemetry.NoopTelemetrySink
+import com.mrturingdev.ssclassify.telemetry.PrivacyPrompt
+import com.mrturingdev.ssclassify.telemetry.QualityEvent
+import com.mrturingdev.ssclassify.telemetry.SettingsTelemetryStore
+import com.mrturingdev.ssclassify.telemetry.ShareBucket
+import com.mrturingdev.ssclassify.telemetry.Telemetry
 import com.mrturingdev.ssclassify.ui.HomeScreen
 import com.mrturingdev.ssclassify.ui.SettingsScreen
 import com.mrturingdev.ssclassify.widget.DeepLinks
 import com.mrturingdev.ssclassify.widget.publishWidgetSnapshot
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import kotlin.time.TimeSource
 
 // Tokens from .design/DESIGN.md (brunopetrovic/apple)
 private val ActionBlue = Color(0xFF0066CC)
@@ -57,7 +66,17 @@ private val DarkOnSelection = Color(0xFFD6E6FF)
  */
 @OptIn(ExperimentalComposeUiApi::class)
 @Composable
-fun App(isPermissionGranted: Boolean = true, pinWidget: (() -> Unit)? = null) {
+fun App(
+    isPermissionGranted: Boolean = true,
+    pinWidget: (() -> Unit)? = null,
+    /** Debug builds only: shares a screenshot's OCR lines as calibration fixture JSON; null hides the action. */
+    exportOcrLines: ((id: String) -> Unit)? = null,
+    /**
+     * Started by the platform entry point, before any UI, so early crashes are
+     * reported; null (previews, tests) sends nothing.
+     */
+    telemetry: Telemetry? = null,
+) {
     var themeMode by remember { mutableStateOf(loadThemeMode()) }
     val darkTheme = when (themeMode) {
         ThemeMode.System -> isSystemInDarkTheme()
@@ -97,6 +116,10 @@ fun App(isPermissionGranted: Boolean = true, pinWidget: (() -> Unit)? = null) {
         val loader = remember { ThumbnailLoader() }
         val scope = rememberCoroutineScope()
 
+        val telemetry = telemetry ?: remember { Telemetry(NoopTelemetrySink, SettingsTelemetryStore()) }
+        var telemetryConsent by remember { mutableStateOf(telemetry.consent) }
+        var privacyPrompt by remember { mutableStateOf<PrivacyPrompt?>(null) }
+
         var scanning by remember { mutableStateOf(false) }
         var rescanRequested by remember { mutableStateOf(false) }
         var outcome by remember { mutableStateOf<ScanOutcome?>(null) }
@@ -112,7 +135,21 @@ fun App(isPermissionGranted: Boolean = true, pinWidget: (() -> Unit)? = null) {
             scope.launch {
                 do {
                     rescanRequested = false
-                    outcome = if (isPermissionGranted) repository.scan() else ScanOutcome.Failure(PERMISSION_DENIED)
+                    val started = TimeSource.Monotonic.markNow()
+                    val result = if (isPermissionGranted) repository.scan() else ScanOutcome.Failure(PERMISSION_DENIED)
+                    outcome = result
+                    // Only scans that analyzed something, so this is never a per-launch ping.
+                    (result as? ScanOutcome.Success)?.stats?.let { stats ->
+                        telemetry.record(
+                            QualityEvent.ScanFinished(
+                                screenshots = CountBucket.of(stats.analyzed),
+                                duration = DurationBucket.of(started.elapsedNow().inWholeMilliseconds),
+                                ocrFailures = CountBucket.of(stats.ocrFailures),
+                                aiCore = scanner.aiCoreState,
+                                untitled = ShareBucket.of(stats.untitled, stats.analyzed),
+                            ),
+                        )
+                    }
                 } while (rescanRequested)
                 scanning = false
             }
@@ -122,6 +159,7 @@ fun App(isPermissionGranted: Boolean = true, pinWidget: (() -> Unit)? = null) {
         LaunchedEffect(Unit) {
             if (!isPermissionGranted) return@LaunchedEffect
             val cached = repository.cached()
+            privacyPrompt = telemetry.pendingPrompt(libraryIsEmpty = cached.isEmpty())
             if (cached.isNotEmpty()) {
                 outcome = ScanOutcome.Success(cached)
                 triggerScan()
@@ -162,6 +200,22 @@ fun App(isPermissionGranted: Boolean = true, pinWidget: (() -> Unit)? = null) {
                     saveThemeMode(it)
                 },
                 pinWidget = pinWidget,
+                libraryCount = (outcome as? ScanOutcome.Success)?.images?.size ?: 0,
+                consent = telemetryConsent,
+                onConsentChange = {
+                    telemetry.updateConsent(it)
+                    telemetryConsent = it
+                    privacyPrompt = null
+                },
+                onReanalyzeAll = {
+                    telemetry.record(QualityEvent.ReanalyzeAllUsed)
+                    scope.launch {
+                        repository.markAllForReanalysis()
+                        // Back home, where the usual scan progress shows.
+                        showSettings = false
+                        triggerScan()
+                    }
+                },
                 onBack = { showSettings = false },
                 modifier = Modifier.fillMaxSize(),
             )
@@ -177,11 +231,26 @@ fun App(isPermissionGranted: Boolean = true, pinWidget: (() -> Unit)? = null) {
                     scanner = scanner,
                     thumbnailLoader = loader,
                     onScan = ::triggerScan,
+                    onExportOcrLines = exportOcrLines,
+                    // New installs see the card once their first scan has found screenshots.
+                    privacyPrompt = privacyPrompt.takeIf {
+                        it == PrivacyPrompt.UpdateNotice || (outcome as? ScanOutcome.Success)?.images?.isNotEmpty() == true
+                    },
+                    onPrivacyAnswer = { share ->
+                        telemetry.answerPrompt(share)
+                        telemetryConsent = telemetry.consent
+                        privacyPrompt = null
+                    },
                     query = query,
                     onQueryChange = { query = it },
                     searchResults = searchResults,
                     onCategoryChange = { id, category ->
                         scope.launch {
+                            val before = (outcome as? ScanOutcome.Success)?.images?.firstOrNull { it.id == id }?.category
+                            // A reset (null) isn't a correction.
+                            if (category != null && before != null && before != category) {
+                                telemetry.record(QualityEvent.CategoryCorrected(from = before, to = category))
+                            }
                             repository.setCategory(id, category)
                             // Reload so grid, chip counts and (via the search effect) results reflect it.
                             outcome = ScanOutcome.Success(repository.cached())

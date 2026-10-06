@@ -1,0 +1,3 @@
+-- v5 -> v6: the preview title. Existing rows read NULL and fall back to the
+-- OCR digest until they are re-analyzed.
+ALTER TABLE screenshot ADD COLUMN title TEXT;

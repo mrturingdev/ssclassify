@@ -1,0 +1,23 @@
+# Scrubbed ML Kit OCR lines: left top right bottom text (normalized, top-left origin).
+# title: Before you build
+0.044 0.021 0.127 0.034 23:40
+0.104 0.052 0.118 0.062 3
+0.116 0.085 0.589 0.099 **Foldable Storage Shelf**... more
+0.146 0.148 0.423 0.164 programminghub.io
+0.075 0.364 0.927 0.419 Before you build
+0.257 0.438 0.744 0.457 Free tiers change often.
+0.110 0.467 0.892 0.487 Check each provider's limits page first.
+0.088 0.518 0.170 0.527 Gemini
+0.104 0.792 0.130 0.802 10
+0.046 0.900 0.114 0.912 ONEPAL
+0.031 0.849 0.170 0.861 3 hours ago
+0.437 0.200 0.629 0.206 PROGRAMMING HUB
+0.263 0.518 0.323 0.530 Groq
+0.144 0.889 0.356 0.904 trending_nepal
+0.408 0.517 0.554 0.530 OpenRouter
+0.451 0.792 0.478 0.802 10
+0.032 0.826 0.958 0.839 programminghub.io Building with Al does not have to cost... more
+0.637 0.518 0.712 0.527 Mistral
+0.796 0.517 0.918 0.528 Cloudflare
+0.195 0.905 0.661 0.917 Tame Impala - Dracula (feat. JENNIE)E
+0.755 0.900 0.845 0.910 Follow

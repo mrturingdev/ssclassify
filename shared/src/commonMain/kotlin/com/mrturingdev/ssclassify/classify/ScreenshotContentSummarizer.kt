@@ -10,11 +10,14 @@ object ScreenshotContentSummarizer {
     private val tokenSplitRegex = Regex("[\\s|•·\\-]+")
 
     private val amountRegex = Regex(
-        """(?i)(?:total|grand\s*total|subtotal|amount|due|paid|price|balance|rs\.?|npr|\$)\s*[:=-]?\s*([$€£₹]?\s*\d+(?:[.,]\d{1,2})?)"""
+        // Keywords are whole words: "rs" inside "users 300" is not rupees. Numbers keep
+        // thousands and lakh grouping ("1,250.00", "1,25,000"), not just their first group, and an
+        // amount ends there: "$1.2M" or "25K" is an abbreviated figure, not money.
+        """(?i)(?:\b(?:total|grand\s*total|subtotal|amount|due|paid|price|balance|rs\.?|npr)|\$)\s*[:=-]?\s*([$€£₹]?\s*(?:\d{1,3}(?:,\d{2,3})+(?:\.\d{1,2})?|\d+(?:[.,]\d{1,2})?))(?![.,]?[\p{L}\d])"""
     )
 
     private val priorityAmountRegex = Regex(
-        """(?i)(?:total|grand\s*total|amount|due|paid)\s*[:=-]?\s*([$€£₹]?\s*\d+(?:[.,]\d{1,2})?)"""
+        """(?i)\b(?:total|grand\s*total|amount|due|paid)\s*[:=-]?\s*([$€£₹]?\s*(?:\d{1,3}(?:,\d{2,3})+(?:\.\d{1,2})?|\d+(?:[.,]\d{1,2})?))(?![.,]?[\p{L}\d])"""
     )
 
     private val dateRegex = Regex(
@@ -22,7 +25,8 @@ object ScreenshotContentSummarizer {
     )
 
     private val idRegex = Regex(
-        """(?i)(?:order|invoice|txn|transaction|ticket|pnr|id|ref|bill)\s*(?:no\.?|id|#)?\s*[:=-]?\s*([a-z0-9\-_]{4,20})"""
+        // Whole-word keywords ("ref" inside "preference" is not one) and an ID with at least one digit.
+        """(?i)\b(?:order|invoice|txn|transaction|ticket|pnr|id|reference|ref|bill)\b\s*(?:no\.?|id|#)?\s*[:=-]?\s*((?=[a-z0-9\-_]*\d)[a-z0-9\-_]{4,20})"""
     )
 
     /**
@@ -44,8 +48,7 @@ object ScreenshotContentSummarizer {
         val byImportance = marked.sortedBy(::headingLevel).map(::headingText)
 
         // Check if there is an amount or headline line
-        val amountLine = lines.lastOrNull { priorityAmountRegex.containsMatchIn(it) }
-            ?: lines.firstOrNull { amountRegex.containsMatchIn(it) }
+        val amountLine = amountLine(lines)
         val titleLine = byImportance.firstOrNull { it.length in 4..60 && !amountRegex.containsMatchIn(it) } ?: byImportance.first()
 
         val digest = if (amountLine != null && amountLine != titleLine) {
@@ -54,8 +57,14 @@ object ScreenshotContentSummarizer {
             byImportance.take(2).joinToString(" • ")
         }
 
-        return if (digest.length > 90) digest.take(87).trimEnd() + "..." else digest
+        return clip(digest)
     }
+
+    private fun amountLine(lines: List<String>): String? =
+        lines.lastOrNull { priorityAmountRegex.containsMatchIn(it) }
+            ?: lines.firstOrNull { amountRegex.containsMatchIn(it) }
+
+    private fun clip(text: String): String = if (text.length > 90) text.take(87).trimEnd() + "..." else text
 
     /**
      * Extracts a company/business name from OCR text (especially for QR code screenshots).
@@ -64,7 +73,7 @@ object ScreenshotContentSummarizer {
      * 2. Lines with corporate/business entity indicators like "Pvt. Ltd.", "Inc.", "Cafe", "Restaurant", "Mart", etc.
      * 3. Prominent title/heading lines on the QR standee/image that are not generic QR instructions.
      */
-    fun extractCompanyName(ocrText: String): String? {
+    fun extractCompanyName(ocrText: String, allowGuess: Boolean = true): String? {
         val lines = ocrText.lines()
             .map { it.removePrefix("## ").removePrefix("# ").trim() }
             .filter { it.isNotBlank() && !isNoiseLine(it) }
@@ -100,7 +109,8 @@ object ScreenshotContentSummarizer {
 
         // 3. Lines with business / establishment keywords (Cafe, Coffee, Restaurant, Mart, Pharmacy, etc.)
         val businessKeywordRegex = Regex(
-            """(?i)\b(?:cafe|coffee|restaurant|hotel|mart|supermarket|bakery|pharmacy|clinic|hospital|traders?|trading|enterprises?|services|technologies|solutions|boutique|kitchen|sweets|fitness|studio|labs|stationery|store|shop)\b"""
+            // Not inside a hyphenated compound: "IN-STORE" or "e-shop" describe, they don't name.
+            """(?i)(?<![-\w])(?:cafe|coffee|restaurant|hotel|mart|supermarket|bakery|pharmacy|clinic|hospital|traders?|trading|enterprises?|services|technologies|solutions|boutique|kitchen|sweets|fitness|studio|labs|stationery|store|shop)\b"""
         )
         for (line in lines) {
             if (businessKeywordRegex.containsMatchIn(line) && !isGenericQrLine(line)) {
@@ -111,7 +121,8 @@ object ScreenshotContentSummarizer {
             }
         }
 
-        // 4. First non-generic, non-instruction line on the QR code
+        // 4. First non-generic, non-instruction line on the QR code: a guess, so callers with a better signal skip it.
+        if (!allowGuess) return null
         for (line in lines) {
             if (!isGenericQrLine(line)) {
                 val candidate = cleanCompanyName(line)
@@ -125,18 +136,29 @@ object ScreenshotContentSummarizer {
     }
 
     /**
-     * Generates preview text for a screenshot.
-     * For QR code screenshots, if a company name is present in the OCR text,
-     * the company name is used as the preview text; otherwise falls back to the digest.
+     * Generates preview text for a screenshot, strongest signal first:
+     * a QR company name backed by a label, legal suffix or business word,
+     * then the stored [title] with the amount ("Order confirmed • Total 42.00"),
+     * then a guessed QR company name (the first non-generic line), then the OCR digest.
      */
     fun previewText(
         ocrText: String,
         fallbackDescription: String? = null,
         isQr: Boolean = false,
+        title: String? = null,
     ): String {
         if (isQr) {
-            val company = extractCompanyName(ocrText)
-            if (company != null) return company
+            extractCompanyName(ocrText, allowGuess = false)?.let { return it }
+        }
+        if (!title.isNullOrBlank()) {
+            // Just the amount phrase ("Total 42.00"), not its whole row, which can carry
+            // unrelated text merged from the same line of the screen.
+            val amount = (priorityAmountRegex.findAll(ocrText).lastOrNull() ?: amountRegex.find(ocrText))
+                ?.value?.trim()
+            return clip(if (amount != null && amount !in title) "$title • $amount" else title)
+        }
+        if (isQr) {
+            extractCompanyName(ocrText)?.let { return it }
         }
         return summarizeDigest(ocrText, fallbackDescription)
     }
@@ -151,6 +173,7 @@ object ScreenshotContentSummarizer {
             fallbackDescription = image.description,
             isQr = image.category == ImageCategory.QR ||
                 image.subCategory?.contains("qr", ignoreCase = true) == true,
+            title = image.title,
         )
 
     private val genericQrTokens = listOf(
@@ -176,11 +199,15 @@ object ScreenshotContentSummarizer {
         return false
     }
 
+    private val fieldLineRegex = Regex("""^[^:]{1,25}:\s""")
+
     private fun isValidCompanyName(name: String): Boolean {
         if (name.length < 3 || name.length > 60) return false
         if (isNoiseLine(name) || isGenericQrLine(name)) return false
         if (!name.any { it.isLetter() }) return false
         if (name.startsWith("http://") || name.startsWith("https://") || name.startsWith("www.")) return false
+        // "VALID TILL: OCT 18" is a field, not a name; merchant labels were already read in step 1.
+        if (fieldLineRegex.containsMatchIn(name)) return false
         if (amountRegex.containsMatchIn(name) && name.split(' ').size <= 2) return false
         return true
     }

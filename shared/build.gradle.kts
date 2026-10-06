@@ -1,4 +1,5 @@
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
+import java.util.Properties
 
 plugins {
     alias(libs.plugins.kotlinMultiplatform)
@@ -6,6 +7,32 @@ plugins {
     alias(libs.plugins.composeMultiplatform)
     alias(libs.plugins.composeCompiler)
     alias(libs.plugins.sqldelight)
+}
+
+// SENTRY_DSN from local.properties (or a CI secret written there) as a Kotlin constant,
+// so it isn't committed. Without it the constant is empty and telemetry stays off.
+val telemetryConfig = tasks.register("generateTelemetryConfig") {
+    val dsn = providers.fileContents(rootProject.layout.projectDirectory.file("local.properties")).asText
+        .map { text -> Properties().apply { load(text.reader()) }.getProperty("SENTRY_DSN").orEmpty() }
+        .orElse("")
+    val outDir = layout.buildDirectory.dir("generated/telemetry/kotlin")
+    inputs.property("dsn", dsn)
+    outputs.dir(outDir)
+    doLast {
+        val file = outDir.get().file("com/mrturingdev/ssclassify/telemetry/TelemetryConfig.kt").asFile
+        file.parentFile.mkdirs()
+        file.writeText(
+            """
+            |package com.mrturingdev.ssclassify.telemetry
+            |
+            |/** Generated from local.properties by :shared:generateTelemetryConfig. */
+            |object TelemetryConfig {
+            |    /** Empty when the build has no DSN: telemetry then sends nothing. */
+            |    const val SENTRY_DSN: String = "${dsn.get()}"
+            |}
+            |""".trimMargin(),
+        )
+    }
 }
 
 kotlin {
@@ -27,6 +54,9 @@ kotlin {
     }
 
     sourceSets {
+        commonMain {
+            kotlin.srcDir(telemetryConfig)
+        }
         commonMain.dependencies {
             implementation(libs.compose.runtime)
             implementation(libs.compose.foundation)

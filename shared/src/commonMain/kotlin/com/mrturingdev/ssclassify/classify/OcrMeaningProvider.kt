@@ -1,5 +1,7 @@
 package com.mrturingdev.ssclassify.classify
 
+import com.mrturingdev.ssclassify.telemetry.AiCoreState
+
 /**
  * Platform-independent representation of semantic meaning extracted from OCR text.
  *
@@ -9,6 +11,7 @@ package com.mrturingdev.ssclassify.classify
  * @param subCategory Specific object, merchant, or topic identified in the text.
  * @param highlights Structured key-value pairs (Amounts, Dates, References, etc.).
  * @param isSensitive Whether credentials, OTPs, or financial secrets were identified.
+ * @param fromAiCore True when Gemini Nano on AICore produced this, false for rule-based or heuristic fallbacks.
  */
 data class ExtractedOcrMeaning(
     val headline: String,
@@ -17,6 +20,7 @@ data class ExtractedOcrMeaning(
     val subCategory: String? = null,
     val highlights: List<Pair<String, String>> = emptyList(),
     val isSensitive: Boolean = false,
+    val fromAiCore: Boolean = false,
 )
 
 /**
@@ -27,6 +31,9 @@ data class ExtractedOcrMeaning(
  * On iOS, this runs fast heuristic extraction.
  */
 expect class OcrMeaningProvider() {
+    /** On-device Gemini Nano availability, for the opt-in quality stats. */
+    val aiCoreState: AiCoreState
+
     /** [summaryText] is [OcrText.summary]: filtered rows ranked for the title (screen focus, font size, ALL CAPS). */
     suspend fun extractMeaning(
         rawOcrText: String,

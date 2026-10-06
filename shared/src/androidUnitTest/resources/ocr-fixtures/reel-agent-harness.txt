@@ -1,0 +1,103 @@
+# Scrubbed ML Kit OCR lines: left top right bottom text (normalized, top-left origin).
+# title: What Is an Agent Harness?
+0.046 0.020 0.122 0.032 11:01
+0.036 0.270 0.244 0.274 turn 2: model asks for a tool
+0.032 0.208 0.859 0.236 What Is an Agent Harness?
+0.036 0.243 0.797 0.252 Everything around the model that turns it into an agent. Save this for later.
+0.074 0.313 0.112 0.317 result
+0.036 0.411 0.143 0.415 available tools
+0.045 0.424 0.105 0.428 read_file
+0.045 0.439 0.106 0.444 edit_file
+0.045 0.454 0.071 0.458 bash
+0.044 0.468 0.111 0.473 web_search
+0.045 0.484 0.119 0.489 mcp: github
+0.036 0.576 0.084 0.580 context
+0.036 0.582 0.071 0.586 resets
+0.148 0.281 0.181 0.285 model
+0.041 0.362 0.375 0.373 The loop: think, act, observe
+0.036 0.595 0.105 0.600 to-do file
+0.036 0.602 0.090 0.606 this task
+0.145 0.314 0.182 0.317 answer
+0.126 0.346 0.204 0.350 harness runs
+0.041 0.377 0.448 0.385 The model only writes text. The harness runs the tool
+0.042 0.387 0.376 0.393 calls it asks for and feeds the results back in.
+0.036 0.553 0.207 0.558 three sessions, one task
+0.086 0.615 0.113 0.620 file
+0.034 0.701 0.085 0.707 Model
+0.207 0.312 0.267 0.319 tooall
+0.033 0.717 0.081 0.725 Agent
+0.285 0.070 0.392 0.085 Reels
+0.176 0.410 0.258 0.416 model output
+0.290 0.283 0.391 0.289 while not done:
+0.172 0.563 0.213 0.567 Sessipn
+0.034 0.690 0.187 0.695 same task, same model:
+0.306 0.294 0.399 0.298 out = lln (ctx)
+0.041 0.504 0.426 0.514 Tools: schemas in, ISON calls out
+0.042 0.519 0.455 0.526 Each tool is a name, a description and a JSON schema.
+0.041 0.529 0.388 0.536 The model picks one, the harness executes it.
+0.306 0.303 0.420 0.308 if out. tool_call:
+0.319 0.312 0.399 0.318 r = run (out)
+0.322 0.322 0.406 0.329 ctx.append (r)
+0.306 0.334 0.415 0.338 else: return out
+0.284 0.351 0.423 0.355 the harness, in 6 lines
+0.313 0.474 0.409 0.479 , harness runs it
+0.277 0.564 0.328 0.567 Session 2
+0.042 0.646 0.380 0.656 Memory outlives the context
+0.042 0.660 0.443 0.668 Context resets each session. To-do files and memory
+0.042 0.670 0.420 0.678 files persist, so the agent picks up where it left off.
+0.147 0.636 0.408 0.640 agent writes notes before each session ends
+0.382 0.563 0.432 0.567 Session 3
+0.174 0.825 0.369 0.835 techwith.ram
+0.420 0.703 0.473 0.708 1 reply
+0.033 0.737 0.422 0.744 Agent = model + harness. Model thinks, harness acts.
+0.103 0.944 0.324 0.955 Add comment...
+0.479 0.069 0.627 0.085 Friends
+0.397 0.718 0.473 0.723 until done
+0.536 0.269 0.771 0.275 context window (e.g. 200K tokens)
+0.536 0.310 0.761 0.315 turn 5: messages + results pile up
+0.550 0.325 0.636 0.331 I system prompt
+0.553 0.337 0.601 0.340 messages
+0.756 0.018 0.933 0.035 .ll 10
+0.535 0.351 0.778 0.356 rebuilt and re- sent on every single turn
+0.536 0.411 0.671 0.416 incoming tool calls
+0.695 0.325 0.769 0.330 tool schemas
+0.692 0.336 0.769 0.340 tool results
+0.542 0.363 0.887 0.371 Context: what the model sees
+0.536 0.553 0.606 0.558 lead agent
+0.541 0.377 0.948 0.385 The harness rebuilds the prompt every turn. Near the
+0.542 0.387 0.885 0.395 limit, old turns are summarized (compaction).
+0.576 0.590 0.606 0.594 lead
+0.572 0.597 0.609 0.603 agent
+0.536 0.493 0.828 0.497 runs inside a sandbox: limited files and network
+0.536 0.618 0.606 0.621 1ead context
+0.536 0.625 0.600 0.628 stays s mall
+0.731 0.450 0.769 0.455 policy
+0.734 0.457 0.766 0.460 check
+0.542 0.504 0.875 0.515 Permissions and sandboxing
+0.834 0.324 0.909 0.330 memory files
+0.828 0.335 0.876 0.341 O summary
+0.542 0.517 0.938 0.527 Every call passes a policy: reads run, risky write ask
+0.542 0.529 0.908 0.536 first, dangerous commands are blocked outright.
+0.043 0.871 0.700 0.883 Comment "Harness" to get some more details.
+0.753 0.561 0.829 0.566 search code
+0.753 0.590 0.816 0.595 read docs
+0.541 0.738 0.736 0.749 o @techwith.ram
+0.885 0.275 0.942 0.280 76% Used
+0.874 0.310 0.946 0.314 compact here
+0.753 0.619 0.816 0.623 run tests
+0.542 0.644 0.835 0.657 Subagents: split the work
+0.540 0.719 0.828 0.729 in @ramakrushnamohapatra
+0.856 0.423 0.889 0.426 alloW
+0.856 0.430 0.904 0.432 Puns now
+0.856 0.450 0.912 0.455 ask user
+0.856 0.458 0.904 0.460 annrove?
+0.856 0.479 0.883 0.484 deny
+0.856 0.486 0.897 0.489 blocked
+0.892 0.564 0.945 0.567 OWn fresh
+0.892 0.570 0.931 0.573 context
+0.542 0.660 0.970 0.668 A lead agent hands focused tasks to subagents vith fresh
+0.542 0.670 0.876 0.678 context, then merges their short summaries.
+0.892 0.620 0.932 0.624 ret:rn:
+0.542 0.697 0.919 0.706 Follow for more AI breakdowns
+0.892 0.627 0.926 0.629 Sumr ar
+0.905 0.830 0.941 0.838 170

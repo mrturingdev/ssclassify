@@ -133,4 +133,65 @@ class OcrTextProcessorTest {
         assertEquals("Inbox\nSearch mail\nPayment received\nYou got 120.00 from Sam\nReply", text.filtered)
         assertEquals("Payment received\nYou got 120.00 from Sam\nInbox\nSearch mail\nReply", text.detail)
     }
+
+    @Test
+    fun aBigButtonInTheMiddleIsNotASolidTitle() {
+        fun sized(text: String, centerY: Float, height: Float = 0.02f) =
+            OcrLine(text, 0.1f, centerY - height / 2, 0.9f, centerY + height / 2)
+        val lines = listOf(
+            sized("Payment received", centerY = 0.10f), // outer
+            sized("You got 120.00 from Sam", centerY = 0.40f),
+            sized("DONE", centerY = 0.50f, height = 0.05f), // title-size, but one short word
+            sized("Share receipt", centerY = 0.55f),
+        )
+        val text = OcrTextProcessor.process(lines)
+        assertEquals(text.filtered, text.detail)
+    }
+
+    @Test
+    fun titleIsTheLargestSolidWordyRowOutsideTheEdgeBand() {
+        fun sized(text: String, centerY: Float, height: Float = 0.02f) =
+            OcrLine(text, 0.1f, centerY - height / 2, 0.9f, centerY + height / 2)
+        val lines = listOf(
+            sized("Bank of Kathmandu", centerY = 0.07f, height = 0.05f), // title-size, but in the edge band
+            sized("NPR 5,000.00", centerY = 0.30f, height = 0.06f), // largest, but an amount
+            sized("PAY", centerY = 0.35f, height = 0.05f), // title-size but not solid
+            sized("Transfer successful", centerY = 0.45f, height = 0.04f), // title-size, middle
+            sized("Amount 5,000.00", centerY = 0.55f),
+            sized("Reference 88123", centerY = 0.60f),
+            sized("From savings", centerY = 0.65f),
+            sized("Fee 0.00", centerY = 0.70f),
+        )
+        assertEquals("Transfer successful", OcrTextProcessor.process(lines).title)
+    }
+
+    @Test
+    fun titleFallsBackToEmphasizedThenNull() {
+        fun sized(text: String, centerY: Float, height: Float = 0.02f) =
+            OcrLine(text, 0.1f, centerY - height / 2, 0.9f, centerY + height / 2)
+        val emphasized = listOf(
+            sized("Gate 4", centerY = 0.40f),
+            sized("Boarding now", centerY = 0.45f, height = 0.025f),
+            sized("Seat 12A", centerY = 0.50f),
+        )
+        assertEquals("Boarding now", OcrTextProcessor.process(emphasized).title)
+        val flat = listOf(sized("Gate 4", centerY = 0.40f), sized("Seat 12A", centerY = 0.50f))
+        assertEquals(null, OcrTextProcessor.process(flat).title)
+    }
+
+    @Test
+    fun nearlyEqualTitleSizesTieAndTheHigherRowWins() {
+        fun sized(text: String, centerY: Float, height: Float = 0.015f) =
+            OcrLine(text, 0.1f, centerY - height / 2, 0.9f, centerY + height / 2)
+        val lines = listOf(
+            sized("Payment Successful!", centerY = 0.16f, height = 0.0187f), // heights measured on a phone
+            sized("NPR 2600.00", centerY = 0.31f, height = 0.030f),
+            sized("02 OCT, 2026 05:13 PM", centerY = 0.36f),
+            sized("View Details", centerY = 0.42f),
+            sized("Transaction Code", centerY = 0.51f),
+            sized("Split payment with friends?", centerY = 0.60f, height = 0.0192f), // 2.6% taller: jitter, not a bigger font
+            sized("Add expense category", centerY = 0.67f),
+        )
+        assertEquals("Payment Successful!", OcrTextProcessor.process(lines).title)
+    }
 }
