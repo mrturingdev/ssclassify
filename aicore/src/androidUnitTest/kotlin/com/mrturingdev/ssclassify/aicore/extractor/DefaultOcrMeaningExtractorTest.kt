@@ -93,4 +93,28 @@ class DefaultOcrMeaningExtractorTest {
         assertEquals(InferenceSource.RULE_BASED_FALLBACK, result.source)
         assertEquals(MeaningCategory.TRAVEL_TICKET, result.category)
     }
+
+    /** Like the real client on a phone without AICore: prepare() fails with Error, checkAvailability() says why. */
+    private class NoAiCoreClient : AiCoreClient {
+        private val _status = MutableStateFlow<AiCoreStatus>(AiCoreStatus.Unchecked)
+        override val status: StateFlow<AiCoreStatus> = _status.asStateFlow()
+        override suspend fun checkAvailability(): AiCoreStatus =
+            AiCoreStatus.Unsupported("AICore package not installed").also { _status.value = it }
+        override suspend fun prepare(): Boolean {
+            _status.value = AiCoreStatus.Error("GenerativeModel init failed")
+            return false
+        }
+        override suspend fun generateContent(prompt: String): String = error("not available")
+        override fun generateContentStream(prompt: String): Flow<String> = error("not available")
+        override fun close() {}
+    }
+
+    @Test
+    fun testExtractMeaning_onDeviceWithoutAiCore_reportsUnsupportedNotError() = runTest {
+        val client = NoAiCoreClient()
+        val result = DefaultOcrMeaningExtractor(client = client, preferAiCore = true).extractMeaning("Order #ORD-1\nTotal 42.00")
+
+        assertEquals(InferenceSource.RULE_BASED_FALLBACK, result.source)
+        assertTrue(client.status.value is AiCoreStatus.Unsupported, "was ${client.status.value}")
+    }
 }

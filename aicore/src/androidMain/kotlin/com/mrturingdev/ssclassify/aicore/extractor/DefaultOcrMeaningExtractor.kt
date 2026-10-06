@@ -56,7 +56,13 @@ class DefaultOcrMeaningExtractor(
             try {
                 // Ensure model is ready or prepare it
                 val currentStatus = client.status.value
-                val isReady = currentStatus is AiCoreStatus.Ready || client.prepare()
+                // checkAvailability, not prepare: it checks the OS level and AICore package first, so a
+                // phone without AICore reads Unsupported rather than a model-init Error.
+                val isReady = when (currentStatus) {
+                    AiCoreStatus.Ready -> true
+                    is AiCoreStatus.Unsupported -> false
+                    else -> client.checkAvailability() is AiCoreStatus.Ready
+                }
 
                 if (isReady) {
                     val prompt = OcrPromptBuilder.buildMeaningPrompt(rawOcrText)
